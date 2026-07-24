@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "410241230751",
+    "project_id": "salesinfusion-d90d5",
+    "storage_bucket": "salesinfusion-d90d5.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:410241230751:android:42af5e998103aa2902ffaa",
+        "android_client_info": {
+          "package_name": "com.example.kmmexlvistech.android"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB4j3WZ_qAeNA1TI5T48btbZ46q1vgmePU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
