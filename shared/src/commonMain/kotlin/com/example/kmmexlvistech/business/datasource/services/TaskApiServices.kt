@@ -1,6 +1,9 @@
 package com.example.kmmexlvistech.business.datasource.services
 
 
+import com.example.kmmexlvistech.business.datasource.dto.CreateTaskRequestDto
+import com.example.kmmexlvistech.business.datasource.dto.CreateTaskResponse
+import com.example.kmmexlvistech.business.datasource.dto.DeleteTaskResponse
 import com.example.kmmexlvistech.business.datasource.dto.LeadsListResponse
 import com.example.kmmexlvistech.business.datasource.dto.LeadsRequestDto
 import com.example.kmmexlvistech.business.datasource.dto.LoginRequestDTO
@@ -22,14 +25,18 @@ interface TaskApiServices {
 
         const val GET_TASK_LIST = "Task/List"
         const val GET_TASK_DETAILS = "Task"
+        const val CREATE_TASK = "Task"
+        const val SEARCH_LEADS = "Lead/GetList"
+        const val DELETE_TASK = "Task/Delete"
     }
 
     suspend fun getTaskList(token: String,taskListResponse: TaskRequestDto): TaskListResponse
 
     suspend fun getTaskDetails(token: String, id: String): TaskDetailResponse
 
-
-
+    suspend fun createTask(token: String, requestDto: CreateTaskRequestDto): CreateTaskResponse
+    suspend fun searchLeads(token: String, requestDto: LeadsRequestDto): LeadsListResponse
+    suspend fun deleteTask(token: String, id: String): DeleteTaskResponse
 
 
 }

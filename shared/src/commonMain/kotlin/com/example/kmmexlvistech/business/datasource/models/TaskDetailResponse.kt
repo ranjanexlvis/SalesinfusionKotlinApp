@@ -29,11 +29,10 @@ data class ActivityTaskData(
     val endDateTime: String,
     val startDateTime: String,
     val createddatetime: String,
-    val modifieddatetime: String,
+    val modifieddatetime: String? = null,      // ✅ was non-nullable, now nullable
     val reminderDateTime: String,
-    val completionDateTime: String
+    val completionDateTime: String? = null,    // ✅ likely null before a task is completed — make nullable too
 )
-
 @Serializable
 data class Lead(
     val id: String,

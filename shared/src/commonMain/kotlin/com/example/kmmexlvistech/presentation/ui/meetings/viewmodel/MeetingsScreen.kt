@@ -101,7 +101,7 @@ fun MeetingsScreen(
 
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 meetingStatusFilters.forEach { filter ->
-                    val selected = filter.name == meetingsState.selectedStatusName
+                    val selected = filter.name == meetingsState.selectedMeetingId
                     FilterChip(
                         selected = selected,
                         onClick = { events(MeetingsEvent.StatusFilterChanged(filter.name, systemToken, userCode)) },

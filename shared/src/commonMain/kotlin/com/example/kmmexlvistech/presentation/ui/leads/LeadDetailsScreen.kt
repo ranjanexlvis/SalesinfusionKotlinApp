@@ -50,15 +50,17 @@ fun LeadDetailsScreen(
     state: LeadsState,
     onBackClick: () -> Unit,
     onEditClick: () -> Unit,
-    onDeleteClick: () -> Unit,
+    onDeleteConfirmed: () -> Unit,   // renamed from onDeleteClick — now fires only after confirmation
     onAssignedToClick: () -> Unit,
     onRemoveHeadFromQueue: () -> Unit = {},
     onTryAgain: () -> Unit = {},
 ) {
+    var showDeleteDialog by remember { mutableStateOf(false) }
+
     DefaultUiScreen(
         queue = state.errorQueue,
         onRemoveHeadFromQueue = onRemoveHeadFromQueue,
-        progressBarState = if (state.isLoadingDetails) ProgressBarState.Loading else ProgressBarState.Idle,
+        progressBarState = if (state.isLoadingDetails || state.isDeletingLead) ProgressBarState.Loading else ProgressBarState.Idle,
         onTryAgain = onTryAgain,
     ) {
         Column(Modifier.fillMaxSize()) {
@@ -73,51 +75,56 @@ fun LeadDetailsScreen(
                     IconButton(onClick = onEditClick) {
                         Icon(Icons.Default.Edit, contentDescription = "Edit", tint = Color.White)
                     }
-                    IconButton(onClick = onDeleteClick) {
+                    IconButton(onClick = { showDeleteDialog = true }) {
                         Box(
                             Modifier
                                 .background(Color(0xFFEF4444), RoundedCornerShape(8.dp))
                                 .padding(6.dp)
                         ) {
-                            Icon(
-                                Icons.Default.Delete,
-                                contentDescription = "Delete",
-                                tint = Color.White,
-                                modifier = Modifier.size(18.dp)
-                            )
+                            Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color.White, modifier = Modifier.size(18.dp))
                         }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF1E2A5E))
             )
 
-            Box(
-                Modifier
-                    .fillMaxSize()
-                    .weight(1f)
-                    .background(Color(0xFFF5F6FA))
-            ) {
+            Box(Modifier.fillMaxSize().weight(1f).background(Color(0xFFF5F6FA))) {
                 when {
                     state.detailsError != null -> {
                         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                             Text(state.detailsError, color = Color.Red)
                         }
                     }
-                    state.lead != null -> {
-                        LeadDetailsContent(state.lead, onAssignedToClick)
-                    }
+                    state.lead != null -> LeadDetailsContent(state.lead, onAssignedToClick)
                     !state.isLoadingDetails -> {
                         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                             Text("No lead found", color = Color.Gray)
                         }
                     }
-                    // else: isLoadingDetails == true, DefaultUiScreen already shows the dimmed overlay + spinner
                 }
             }
         }
     }
-}
 
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("Delete Lead") },
+            text = { Text("Are you sure you want to delete this lead? This action cannot be undone.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showDeleteDialog = false
+                    onDeleteConfirmed()
+                }) {
+                    Text("Delete", color = Color(0xFFEF4444), fontWeight = FontWeight.SemiBold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) { Text("Cancel") }
+            }
+        )
+    }
+}
 //
 
 @Composable

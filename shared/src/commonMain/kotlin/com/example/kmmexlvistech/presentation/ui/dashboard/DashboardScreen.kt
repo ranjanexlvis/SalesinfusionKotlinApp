@@ -11,18 +11,28 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.example.kmmexlvistech.business.core.AppDataStore
 import com.example.kmmexlvistech.common.DataStoreKeys
+import com.example.kmmexlvistech.presentation.ui.calls.CallDetailsScreen
 import com.example.kmmexlvistech.presentation.ui.calls.CallsScreen
+import com.example.kmmexlvistech.presentation.ui.calls.CreateCallScreen
+import com.example.kmmexlvistech.presentation.ui.calls.viewmodel.CallsEvent
 import com.example.kmmexlvistech.presentation.ui.calls.viewmodel.CallsViewModel
 import com.example.kmmexlvistech.presentation.ui.tasks.TaskScreen
 import com.example.kmmexlvistech.presentation.ui.tasks.viewmodel.TaskViewModel
 import com.example.kmmexlvistech.presentation.ui.dashboard.viewModel.HomeViewModel
+import com.example.kmmexlvistech.presentation.ui.leads.CreateLeadScreen
 import com.example.kmmexlvistech.presentation.ui.leads.LeadDetailsScreen
 import com.example.kmmexlvistech.presentation.ui.leads.LeadsScreen
 import com.example.kmmexlvistech.presentation.ui.leads.viewmodel.LeadsEvent
 import com.example.kmmexlvistech.presentation.ui.leads.viewmodel.LeadsViewModel
+import com.example.kmmexlvistech.presentation.ui.meetings.CreateMeetingScreen
+import com.example.kmmexlvistech.presentation.ui.meetings.MeetingDetailsScreen
 import com.example.kmmexlvistech.presentation.ui.meetings.MeetingsScreen
+import com.example.kmmexlvistech.presentation.ui.meetings.viewmodel.MeetingsEvent
 import com.example.kmmexlvistech.presentation.ui.meetings.viewmodel.MeetingsViewModel
 import com.example.kmmexlvistech.presentation.ui.navigation.MainScaffold
+import com.example.kmmexlvistech.presentation.ui.tasks.CreateTaskScreen
+import com.example.kmmexlvistech.presentation.ui.tasks.TaskDetailsScreen
+import com.example.kmmexlvistech.presentation.ui.tasks.viewmodel.TasksEvent
 import moe.tlaster.precompose.navigation.NavHost
 import moe.tlaster.precompose.navigation.path
 import moe.tlaster.precompose.navigation.query
@@ -54,8 +64,23 @@ fun DashboardScreen(
         "LEADS" -> BottomNavDestination.LEADS.route
         "TASKS", "TODAYS_TASKS" -> BottomNavDestination.TASKS.route
         "CALLS", "PENDING_CALLS" -> CALLS_ROUTE
-         "MEETINGS", "UPCOMING_MEETINGS" -> MEETINGS_ROUTE
+        "MEETINGS", "UPCOMING_MEETINGS" -> MEETINGS_ROUTE
         else -> null
+    }
+
+    fun routeForPath(rawPath: String): String? {
+        val normalized = rawPath.removePrefix("/").removePrefix("crm/")
+        return when (normalized) {
+            "leads/create" -> "leads/create"
+            "leads" -> BottomNavDestination.LEADS.route
+            "tasks/create" -> "tasks/create"
+            "tasks" -> BottomNavDestination.TASKS.route
+            "meetings/create" -> "meetings/create"
+            "meetings" -> MEETINGS_ROUTE
+            "calls/create" -> "calls/create"
+            "calls" -> CALLS_ROUTE
+            else -> null
+        }
     }
 
 
@@ -105,11 +130,22 @@ fun DashboardScreen(
                     events = homeViewModel::onEvent,
                     systemToken = systemToken,
                     onWidgetClick = { widget ->
-                        val target = routeForWidgetCode(widget.widgetCode) ?: widget.routePath ?: widget.moduleCode
-                        if (!target.isNullOrBlank()) tabNavigator.navigate(target)
+                        val target = routeForWidgetCode(widget.widgetCode)
+                            ?: widget.routePath?.let { routeForPath(it) }
+                            ?: widget.moduleCode?.let { routeForPath(it) }
+                        if (!target.isNullOrBlank()) {
+                            tabNavigator.navigate(target)
+                        } else {
+                            println("AppDebug: no route mapping found for widget=${widget.widgetCode}, path=${widget.routePath}")
+                        }
                     },
                     onQuickActionClick = { action ->
-                        if (!action.routePath.isNullOrBlank()) tabNavigator.navigate(action.routePath)
+                        val target = action.routePath?.let { routeForPath(it) }
+                        if (!target.isNullOrBlank()) {
+                            tabNavigator.navigate(target)
+                        } else {
+                            println("AppDebug: no route mapping found for quick action, path=${action.routePath}")
+                        }
                     },
                 )
             }
@@ -127,7 +163,10 @@ fun DashboardScreen(
                     events = callsViewModel::onEvent,
                     systemToken = systemToken,
                     userCode = 1021, // same static-placeholder pattern as Leads/Tasks for now
-                    onCallClick = { call -> tabNavigator.navigate("calls/${call.callId}") },
+                    onCallClick = { call ->
+                        callsViewModel.onEvent(CallsEvent.SelectCall(call.id))
+                        tabNavigator.navigate("calls/details")
+                    },
                     onDialClick = { call -> /* TODO: dialer intent — CallDto has no phone field yet */ },
                     onCallMenuClick = { call -> /* TODO: reschedule / mark complete / cancel */ },
                 )
@@ -154,15 +193,33 @@ fun DashboardScreen(
                     onLeadMenuClick = { lead -> /* TODO */ },
                 )
             }
+            scene(route = "leads/create") {
+                val leadsViewModel: LeadsViewModel = koinInject()
+                var systemToken by remember { mutableStateOf("") }
+
+                LaunchedEffect(Unit) {
+                    systemToken = appDataStoreManager.readValue(DataStoreKeys.TOKEN) ?: ""
+                    leadsViewModel.onEvent(LeadsEvent.ResetCreateLeadForm)
+                }
+                LaunchedEffect(systemToken) {
+                    if (systemToken.isNotEmpty()) {
+                        leadsViewModel.onEvent(LeadsEvent.LoadCreateLeadLookups(systemToken))
+                    }
+                }
+
+                CreateLeadScreen(
+                    state = leadsViewModel.state.value,
+                    events = leadsViewModel::onEvent,
+                    token = systemToken,
+                    onBackClick = { tabNavigator.goBack() },
+                    onSaved = { tabNavigator.goBack() }
+                )
+            }
 
             scene(route = "leads/details") {
                 val leadsViewModel: LeadsViewModel = koinInject()
-                println("AppDebug: details scene vm=$leadsViewModel")
                 val leadId = leadsViewModel.state.value.selectedLeadId ?: ""
-                println("AppDebug: leadId on details scene = '$leadId'")
                 var systemToken by remember { mutableStateOf("") }
-
-                println("AppDebug: leadId on details scene = '$leadId'")
 
                 LaunchedEffect(Unit) {
                     systemToken = appDataStoreManager.readValue(DataStoreKeys.TOKEN) ?: ""
@@ -172,13 +229,22 @@ fun DashboardScreen(
                         leadsViewModel.onEvent(LeadsEvent.LoadLeadDetails(systemToken, leadId))
                     }
                 }
+                LaunchedEffect(leadsViewModel.state.value.leadDeleted) {
+                    if (leadsViewModel.state.value.leadDeleted) {
+                        leadsViewModel.onEvent(LeadsEvent.ResetDeleteLeadFlag)
+                        tabNavigator.goBack()
+                    }
+                }
 
                 LeadDetailsScreen(
                     state = leadsViewModel.state.value,
                     onBackClick = { tabNavigator.goBack() },
                     onEditClick = { /* TODO */ },
-                    onDeleteClick = { /* TODO */ },
-                    onAssignedToClick = { /* TODO */ }
+                    onDeleteConfirmed = {
+                        leadsViewModel.onEvent(LeadsEvent.DeleteLead(systemToken, leadId))
+                    },
+                    onAssignedToClick = { /* TODO */ },
+                    onRemoveHeadFromQueue = { leadsViewModel.onEvent(LeadsEvent.OnRemoveHeadFromQueue) },
                 )
             }
 
@@ -197,9 +263,120 @@ fun DashboardScreen(
                     taskState = taskViewModel.state.value,
                     events = taskViewModel::onEvent,
                     systemToken = systemToken,
-                    userCode = userCode,
-                    onTaskClick = { task -> tabNavigator.navigate("tasks/${task.taskId}") },
+                    userCode = 1021,
+                    onTaskClick = { task ->
+                        taskViewModel.onEvent(TasksEvent.SelectTask(task.id.toString()))
+                        tabNavigator.navigate("tasks/details")
+                    },
                     onTaskMenuClick = { task -> /* TODO: mark complete / edit / delete */ },
+                )
+
+
+            }
+            scene(route = "tasks/create") {
+                val taskViewModel: TaskViewModel = koinInject()
+                var systemToken by remember { mutableStateOf("") }
+
+                LaunchedEffect(Unit) {
+                    systemToken = appDataStoreManager.readValue(DataStoreKeys.TOKEN) ?: ""
+                    taskViewModel.onEvent(TasksEvent.ResetCreateTaskForm)
+                }
+                LaunchedEffect(systemToken) {
+                    if (systemToken.isNotEmpty()) {
+                        taskViewModel.onEvent(TasksEvent.LoadCreateTaskLookups(systemToken))
+                    }
+                }
+
+                CreateTaskScreen(
+                    state = taskViewModel.state.value,
+                    events = taskViewModel::onEvent,
+                    token = systemToken,
+                    onBackClick = { tabNavigator.goBack() },
+                    onSaved = { tabNavigator.goBack() }
+                )
+            }
+
+            scene(route = "meetings/create") {
+                val meetingsViewModel: MeetingsViewModel = koinInject()
+                var systemToken by remember { mutableStateOf("") }
+
+                LaunchedEffect(Unit) {
+                    systemToken = appDataStoreManager.readValue(DataStoreKeys.TOKEN) ?: ""
+                    meetingsViewModel.onEvent(MeetingsEvent.ResetCreateMeetingForm)
+                }
+                LaunchedEffect(systemToken) {
+                    if (systemToken.isNotEmpty()) {
+                        meetingsViewModel.onEvent(MeetingsEvent.LoadCreateMeetingLookups(systemToken))
+                    }
+                }
+
+                CreateMeetingScreen(
+                    state = meetingsViewModel.state.value,
+                    events = meetingsViewModel::onEvent,
+                    token = systemToken,
+                    onBackClick = { tabNavigator.goBack() },
+                    onSaved = { tabNavigator.goBack() }
+                )
+            }
+
+            scene(route = "calls/details") {
+                val callsViewModel: CallsViewModel = koinInject()
+                val callId = callsViewModel.state.value.selectedCallId ?: ""
+                var systemToken by remember { mutableStateOf("") }
+
+                LaunchedEffect(Unit) {
+                    systemToken = appDataStoreManager.readValue(DataStoreKeys.TOKEN) ?: ""
+                }
+                LaunchedEffect(systemToken, callId) {
+                    if (systemToken.isNotEmpty() && callId.isNotEmpty()) {
+                        callsViewModel.onEvent(CallsEvent.LoadCallDetails(systemToken, callId))
+                    }
+                }
+                LaunchedEffect(callsViewModel.state.value.callDeleted) {
+                    if (callsViewModel.state.value.callDeleted) {
+                        callsViewModel.onEvent(CallsEvent.ResetDeleteCallFlag)
+                        tabNavigator.goBack()
+                    }
+                }
+
+                CallDetailsScreen(
+                    state = callsViewModel.state.value,
+                    onBackClick = { tabNavigator.goBack() },
+                    onEditClick = { /* TODO */ },
+                    onDeleteConfirmed = { callsViewModel.onEvent(CallsEvent.DeleteCall(systemToken, callId)) },
+                    onRelatedToClick = { tabNavigator.navigate("leads/details") },
+                    onRemoveHeadFromQueue = { callsViewModel.onEvent(CallsEvent.OnRemoveHeadFromQueue) },
+                )
+            }
+
+            scene(route = "tasks/details") {
+                val taskViewModel: TaskViewModel = koinInject()
+                val taskId = taskViewModel.state.value.selectedTaskId ?: ""
+                var systemToken by remember { mutableStateOf("") }
+
+                LaunchedEffect(Unit) {
+                    systemToken = appDataStoreManager.readValue(DataStoreKeys.TOKEN) ?: ""
+                }
+                LaunchedEffect(systemToken, taskId) {
+                    if (systemToken.isNotEmpty() && taskId.isNotEmpty()) {
+                        taskViewModel.onEvent(TasksEvent.LoadTaskDetails(systemToken, taskId))
+                    }
+                }
+                LaunchedEffect(taskViewModel.state.value.taskDeleted) {
+                    if (taskViewModel.state.value.taskDeleted) {
+                        taskViewModel.onEvent(TasksEvent.ResetDeleteTaskFlag)
+                        tabNavigator.goBack()
+                    }
+                }
+
+                TaskDetailsScreen(
+                    state = taskViewModel.state.value,
+                    onBackClick = { tabNavigator.goBack() },
+                    onEditClick = { /* TODO */ },
+                    onDeleteConfirmed = {
+                        taskViewModel.onEvent(TasksEvent.DeleteTask(systemToken, taskId))
+                    },
+                    onRemoveHeadFromQueue = { taskViewModel.onEvent(TasksEvent.OnRemoveHeadFromQueue) },
                 )
             }
 
@@ -216,9 +393,59 @@ fun DashboardScreen(
                     events = meetingsViewModel::onEvent,
                     systemToken = systemToken,
                     userCode = 1021, // same placeholder as Leads/Tasks/Calls
-                    onMeetingClick = { meeting -> tabNavigator.navigate("meetings/${meeting.meetingId}") },
+                    onMeetingClick = { meeting ->
+                        println("@@@meeting${meeting.id}")
+                        meetingsViewModel.onEvent(MeetingsEvent.SelectMeeting(meeting.id))
+                        tabNavigator.navigate("meetings/details")
+                    },
                     onJoinClick = { meeting -> /* TODO: open meeting.meetingLink in browser/webview */ },
                     onMeetingMenuClick = { meeting -> /* TODO: reschedule / cancel */ },
+                )
+            }
+
+            scene(route = "calls/create") {
+                val callsViewModel: CallsViewModel = koinInject()
+                var systemToken by remember { mutableStateOf("") }
+
+                LaunchedEffect(Unit) {
+                    systemToken = appDataStoreManager.readValue(DataStoreKeys.TOKEN) ?: ""
+                    callsViewModel.onEvent(CallsEvent.ResetCreateCallForm)
+                }
+                LaunchedEffect(systemToken) {
+                    if (systemToken.isNotEmpty()) {
+                        callsViewModel.onEvent(CallsEvent.LoadCreateCallLookups(systemToken))
+                    }
+                }
+
+                CreateCallScreen(
+                    state = callsViewModel.state.value,
+                    events = callsViewModel::onEvent,
+                    token = systemToken,
+                    onBackClick = { tabNavigator.goBack() },
+                    onSaved = { tabNavigator.goBack() }
+                )
+            }
+
+            scene(route = "meetings/details") {
+                val meetingsViewModel: MeetingsViewModel = koinInject()
+                val meetingId = meetingsViewModel.state.value.selectedMeetingId ?: ""
+                var systemToken by remember { mutableStateOf("") }
+
+                LaunchedEffect(Unit) {
+                    systemToken = appDataStoreManager.readValue(DataStoreKeys.TOKEN) ?: ""
+                }
+                LaunchedEffect(systemToken, meetingId) {
+                    if (systemToken.isNotEmpty() && meetingId.isNotEmpty()) {
+                        meetingsViewModel.onEvent(MeetingsEvent.LoadMeetingDetails(systemToken, meetingId))
+                    }
+                }
+
+                MeetingDetailsScreen(
+                    state = meetingsViewModel.state.value,
+                    onBackClick = { tabNavigator.goBack() },
+                    onEditClick = { /* TODO */ },
+                    onDeleteClick = { /* TODO */ },
+                    onRelatedToClick = { tabNavigator.navigate("leads/details") }, // reuse SelectLead first if needed
                 )
             }
 

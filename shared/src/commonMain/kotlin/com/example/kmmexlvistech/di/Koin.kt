@@ -5,6 +5,7 @@ import com.example.kmmexlvistech.business.core.AppDataStore
 import com.example.kmmexlvistech.business.core.AppDataStoreManager
 import com.example.kmmexlvistech.business.core.KtorHttpClient
 import com.example.kmmexlvistech.business.datasource.impl.CallsServiceImpl
+import com.example.kmmexlvistech.business.datasource.impl.CentralCrmServiceImpl
 import com.example.kmmexlvistech.business.datasource.impl.HomeServiceImpl
 import com.example.kmmexlvistech.business.datasource.impl.LeadsServiceImpl
 import com.example.kmmexlvistech.business.datasource.impl.MeetingsServiceImpl
@@ -12,6 +13,7 @@ import com.example.kmmexlvistech.business.datasource.impl.SplashServiceImpl
 import com.example.kmmexlvistech.business.datasource.impl.TaskServiceImpl
 import com.example.kmmexlvistech.business.datasource.models.GeoInfoProvider
 import com.example.kmmexlvistech.business.datasource.services.CallsApiServices
+import com.example.kmmexlvistech.business.datasource.services.CentralCrmApiServices
 import com.example.kmmexlvistech.business.datasource.services.HomeApiServices
 import com.example.kmmexlvistech.business.datasource.services.LeadsApiServices
 import com.example.kmmexlvistech.business.datasource.services.MeetingsApiServices
@@ -41,21 +43,22 @@ fun appModule(context: AppContext) = module {
     single<LeadsApiServices> { LeadsServiceImpl(get()) }
     single<HomeApiServices> { HomeServiceImpl(get()) }
     single<CallsApiServices> { CallsServiceImpl(get()) }
+    single<CentralCrmApiServices> { CentralCrmServiceImpl(get()) }
     single<MeetingsApiServices> { MeetingsServiceImpl(get()) }
     single { KtorHttpClient.httpClient() }
     single { LoginRepository(get(), get()) }
-    single { MeetingsRepository(get()) }
+    single { MeetingsRepository(get(), get()) }
 
-    single { LeadsRepository(get()) }
-    single { TaskRepository(get()) }
+    single { LeadsRepository(get(), get()) }
+    single { TaskRepository(get(), get()) }
     single { HomeRepository(get()) }
-    single { CallsRepository(get()) }
+    single { CallsRepository(get(), get()) }
     single { GeoInfoProvider(get()) }
     factory { HomeViewModel(get()) }
     single { LeadsViewModel(get()) }
-    factory { TaskViewModel(get()) }
-    factory { CallsViewModel(get()) }
-    factory { MeetingsViewModel(get()) }
+    single { TaskViewModel(get()) }
+    single { CallsViewModel(get()) }
+    single { MeetingsViewModel(get()) }
     factory { LoginViewModel(get(), get(), get()) }
 }
 

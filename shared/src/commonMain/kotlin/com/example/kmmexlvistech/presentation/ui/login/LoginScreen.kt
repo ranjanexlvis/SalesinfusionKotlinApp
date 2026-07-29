@@ -29,7 +29,6 @@ import com.example.kmmexlvistech.presentation.ui.splash.viewModel.ApiSuccessEven
 import com.example.kmmexlvistech.presentation.ui.splash.viewModel.LoginEvent
 import com.example.kmmexlvistech.presentation.ui.splash.viewModel.LoginState
 
-private val emailRegex = Regex("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$")
 
 @Composable
 fun LoginScreen(

@@ -6,6 +6,7 @@ import com.example.kmmexlvistech.business.core.UIComponent
 import com.example.kmmexlvistech.business.datasource.dto.LeadDto
 import com.example.kmmexlvistech.business.datasource.models.LeadDetailDto
 import com.example.kmmexlvistech.business.datasource.models.LeadDetailsResponse
+import com.example.kmmexlvistech.presentation.ui.common.DropdownOption
 
 data class LeadsState(
     val progressBarState: ProgressBarState = ProgressBarState.Idle,
@@ -23,10 +24,38 @@ data class LeadsState(
     val lead: LeadDetailDto? = null,
     val detailsError: String? = null,
     val selectedLeadId: String? = null,
+
+    val firstName: String = "",
+    val lastName: String = "",
+    val companyName: String = "",
+    val countryCode: String = "+91",
+    val mobile: String = "",
+    val phone: String = "",
+    val email: String = "",
+    val leadSourceId: Int? = null,
+    val leadStatusId: Int? = null,
+    val leadOwnerId: Int? = null,
+    val assignedToId: Int? = null,
+    val campaignId: Int? = null,
+    val isActive: Boolean = true,
+    val isConverted: Boolean = false,
+    val isSavingLead: Boolean = false,
+    val saveLeadError: String? = null,
+    val leadSaved: Boolean = false,
+
+    val leadStatusOptions: List<DropdownOption> = emptyList(),
+    val leadSourceOptions: List<DropdownOption> = emptyList(),
+    val isLoadingLookups: Boolean = false,
+
+
+    val isDeletingLead: Boolean = false,
+    val deleteLeadError: String? = null,
+    val leadDeleted: Boolean = false,
 ) {
-    // True once every available page has been fetched — used to stop
-    // triggering further pagination calls at list-end.
+
     val hasMore: Boolean get() = leads.size < totalRecords
+
+
 
 
 

@@ -3,6 +3,8 @@ package com.example.kmmexlvistech.business.datasource.services
 
 import com.example.kmmexlvistech.business.datasource.dto.CallsListResponse
 import com.example.kmmexlvistech.business.datasource.dto.CallsRequestDto
+import com.example.kmmexlvistech.business.datasource.dto.CreateMeetingRequestDto
+import com.example.kmmexlvistech.business.datasource.dto.CreateMeetingResponse
 import com.example.kmmexlvistech.business.datasource.dto.LeadsListResponse
 import com.example.kmmexlvistech.business.datasource.dto.LeadsRequestDto
 import com.example.kmmexlvistech.business.datasource.dto.LoginRequestDTO
@@ -13,19 +15,19 @@ import com.example.kmmexlvistech.business.datasource.dto.TokenRequestDTO
 import com.example.kmmexlvistech.business.datasource.models.CommonGenericResponse
 import com.example.kmmexlvistech.business.datasource.models.GetWidgetActivityResponse
 import com.example.kmmexlvistech.business.datasource.models.LoginResponse
+import com.example.kmmexlvistech.business.datasource.models.MeetingDetailResponse
 import com.example.kmmexlvistech.business.datasource.models.QuickActionDTO
 import com.example.kmmexlvistech.business.datasource.models.QuickActionResponse
 
-
 interface MeetingsApiServices {
-
-    companion object{
-
+    companion object {
         const val GET_MEETINGS_LIST = "Meeting/List"
+        const val GET_MEETING_DETAILS = "Meeting"
+        const val CREATE_MEETING = "Meeting"
+        const val SEARCH_LEADS = "Lead/GetList"
     }
-
-    suspend fun getMeetingsList(token: String,meetingsRequestDto: MeetingsRequestDto): MeetingsListResponse
-
-
-
+    suspend fun getMeetingsList(token: String, meetingsRequestDto: MeetingsRequestDto): MeetingsListResponse
+    suspend fun getMeetingDetails(token: String, id: String): MeetingDetailResponse
+    suspend fun createMeeting(token: String, requestDto: CreateMeetingRequestDto): CreateMeetingResponse
+    suspend fun searchLeads(token: String, requestDto: LeadsRequestDto): LeadsListResponse
 }
