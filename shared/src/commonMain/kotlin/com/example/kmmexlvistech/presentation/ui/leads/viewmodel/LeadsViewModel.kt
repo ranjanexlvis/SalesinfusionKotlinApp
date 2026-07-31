@@ -11,8 +11,12 @@ import com.example.kmmexlvistech.business.datasource.dto.LeadPayloadDto
 import com.example.kmmexlvistech.business.datasource.dto.LeadsFilterDto
 import com.example.kmmexlvistech.business.datasource.dto.LeadsRequestDto
 import com.example.kmmexlvistech.business.datasource.dto.LeadsSortDto
+import com.example.kmmexlvistech.business.datasource.dto.UpdateLeadPayloadDto
+import com.example.kmmexlvistech.business.datasource.dto.UpdateLeadRequestDto
+import com.example.kmmexlvistech.business.datasource.models.LeadDetailDto
 import com.example.kmmexlvistech.business.repos.LeadsRepository
 import com.example.kmmexlvistech.presentation.ui.common.DropdownOption
+import com.example.kmmexlvistech.presentation.ui.leads.formatDate
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
@@ -71,13 +75,113 @@ class LeadsViewModel(
                 firstName = "", lastName = "", companyName = "", mobile = "", phone = "", email = "",
                 leadSourceId = null, leadStatusId = null, leadOwnerId = null, assignedToId = null,
                 campaignId = null, isActive = true, isConverted = false,
-                isSavingLead = false, saveLeadError = null, leadSaved = false
+                isSavingLead = false, saveLeadError = null, leadSaved = false,
+                isEditMode = false, editingLeadId = null,
+                isUpdatingLead = false, updateLeadError = null, leadUpdated = false,
             )
 
             is LeadsEvent.DeleteLead -> deleteLead(event.token, event.leadId)
             is LeadsEvent.ResetDeleteLeadFlag -> state.value = state.value.copy(leadDeleted = false)
 
+            is LeadsEvent.LoadLeadForEdit -> loadLeadForEdit(event.lead)
+            is LeadsEvent.UpdateLead -> updateLead(event.token)
 
+        }
+    }
+
+
+    private fun loadLeadForEdit(lead: LeadDetailDto) {
+        state.value = state.value.copy(
+            isEditMode = true,
+            editingLeadId = lead.id,
+            firstName = lead.firstName ?: "",
+            lastName = lead.lastName ?: "",
+            companyName = lead.leadCompanyName ?: "",
+            mobile = lead.mobile ?: "",
+            phone = lead.phone ?: "",
+            email = lead.email ?: "",
+            leadSourceId = lead.leadSourceId,
+            leadStatusId = lead.leadStatusId,
+            leadOwnerId = lead.leadOwner,
+            assignedToId = lead.assignedTo,
+            campaignId = lead.campaignId,
+            isActive = lead.isactive,
+            isConverted = lead.isConverted,
+            isSavingLead = false,
+            saveLeadError = null,
+            leadSaved = false,
+            isUpdatingLead = false,
+            updateLeadError = null,
+            leadUpdated = false,
+
+            editingLeadDisplayId = lead.leadId.toString(),
+            editingLeadCreatedOn = formatDate(lead.createddatetime),
+            editingLeadLastModified = formatDate(lead.modifieddatetime ?: lead.createddatetime),
+            editingLeadLastModifiedBy = "-",
+        )
+    }
+
+    private fun updateLead(token: String) {
+        val s = state.value
+        val leadId = s.isUpdatingLead
+
+        if (leadId.toString().isBlank()) {
+            appendToMessageQueue(UIComponent.ToastSimple("Missing lead id for update"))
+            return
+        }
+
+        if (s.firstName.isBlank() || s.lastName.isBlank() || s.companyName.isBlank() ||
+            s.mobile.isBlank() || s.leadSourceId == null || s.leadStatusId == null ||
+            s.leadOwnerId == null || s.assignedToId == null
+        ) {
+            appendToMessageQueue(UIComponent.ToastSimple("Please fill all required fields"))
+            return
+        }
+
+        viewModelScope.launch {
+            state.value = state.value.copy(isUpdatingLead = true, updateLeadError = null)
+
+            val requestDto = UpdateLeadRequestDto(
+                id = leadId.toString(),
+                lead = UpdateLeadPayloadDto(
+                    firstName = s.firstName,
+                    lastName = s.lastName,
+                    email = s.email.ifBlank { null },
+                    mobile = s.mobile,
+                    phone = s.phone.ifBlank { null },
+                    leadCompanyName = s.companyName,
+                    leadSourceId = s.leadSourceId!!,
+                    leadStatusId = s.leadStatusId!!,
+                    campaignId = s.campaignId,
+                    leadOwner = s.leadOwnerId!!,
+                    assignedTo = s.assignedToId!!,
+                    leadItems = emptyList() // TODO: wire real item edits once items UI exists
+                )
+            )
+
+            leadsRepository.updateLead(token, requestDto).onEach { dataState ->
+                when (dataState) {
+                    is DataState.NetworkStatus -> {}
+                    is DataState.Response -> {
+                        state.value = state.value.copy(isUpdatingLead = false, updateLeadError = "Failed to update lead")
+                        appendToMessageQueue(dataState.uiComponent)
+                    }
+                    is DataState.Data -> {
+                        if (dataState.data?.status == true) {
+                            state.value = state.value.copy(isUpdatingLead = false, leadUpdated = true)
+                            appendToMessageQueue(UIComponent.ToastSimple(dataState.data.message ?: "Lead updated successfully"))
+                        } else {
+                            state.value = state.value.copy(
+                                isUpdatingLead = false,
+                                updateLeadError = dataState.data?.message ?: "Something went wrong"
+                            )
+                        }
+                    }
+                    is DataState.Loading -> {
+                        state.value = state.value.copy(isUpdatingLead = dataState.progressBarState == ProgressBarState.Loading)
+                    }
+                }
+            }.launchIn(viewModelScope)
         }
     }
 

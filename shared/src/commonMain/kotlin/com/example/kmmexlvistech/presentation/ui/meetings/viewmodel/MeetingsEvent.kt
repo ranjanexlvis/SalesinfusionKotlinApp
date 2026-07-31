@@ -31,5 +31,7 @@ sealed class MeetingsEvent {
     data class LoadCreateMeetingLookups(val token: String) : MeetingsEvent()
     data class SaveMeeting(val token: String) : MeetingsEvent()
     object ResetCreateMeetingForm : MeetingsEvent()
+    data class DeleteMeeting(val token: String, val meetingId: String) : MeetingsEvent()
+    object ResetDeleteMeetingFlag : MeetingsEvent()
 
 }

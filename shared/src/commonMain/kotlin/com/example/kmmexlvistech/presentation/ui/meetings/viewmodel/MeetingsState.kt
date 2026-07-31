@@ -49,6 +49,10 @@ data class MeetingsState(
     val saveMeetingError: String? = null,
     val meetingSaved: Boolean = false,
 
+    val isDeletingMeeting: Boolean = false,
+    val deleteMeetingError: String? = null,
+    val meetingDeleted: Boolean = false,
+
 
     ) {
     val hasMore: Boolean get() = meetings.size < totalRecords

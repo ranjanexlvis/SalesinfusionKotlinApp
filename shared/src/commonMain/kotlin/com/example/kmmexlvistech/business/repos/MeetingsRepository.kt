@@ -12,6 +12,7 @@ import com.example.kmmexlvistech.business.datasource.dto.CentralCrmRequestDto
 import com.example.kmmexlvistech.business.datasource.dto.CentralCrmSortDto
 import com.example.kmmexlvistech.business.datasource.dto.CreateMeetingRequestDto
 import com.example.kmmexlvistech.business.datasource.dto.CreateMeetingResponse
+import com.example.kmmexlvistech.business.datasource.dto.DeleteMeetingResponse
 import com.example.kmmexlvistech.business.datasource.dto.LeadsFilterDto
 import com.example.kmmexlvistech.business.datasource.dto.LeadsListResponse
 import com.example.kmmexlvistech.business.datasource.dto.LeadsRequestDto
@@ -108,6 +109,16 @@ import kotlinx.coroutines.flow.flow
                 emit(DataState.Loading(ProgressBarState.Loading))
                 try { emit(DataState.Data(centralCrmApiServices.getUserList(systemToken, UserListRequestDto()))) }
                 catch (e: Exception) { emit(DataState.Response(UIComponent.ToastSimple(e.message ?: "Something went wrong"))) }
+                emit(DataState.Loading(ProgressBarState.Idle))
+            }
+
+             fun deleteMeeting(systemToken: String, meetingId: String): Flow<DataState<DeleteMeetingResponse>> = flow {
+                emit(DataState.Loading(ProgressBarState.Loading))
+                try {
+                    emit(DataState.Data(service.deleteMeeting(systemToken, meetingId)))
+                } catch (e: Exception) {
+                    emit(DataState.Response(UIComponent.ToastSimple(e.message ?: "Something went wrong")))
+                }
                 emit(DataState.Loading(ProgressBarState.Idle))
             }
 

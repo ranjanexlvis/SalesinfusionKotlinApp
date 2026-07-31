@@ -37,15 +37,17 @@ fun MeetingDetailsScreen(
     state: MeetingsState,
     onBackClick: () -> Unit,
     onEditClick: () -> Unit,
-    onDeleteClick: () -> Unit,
+    onDeleteConfirmed: () -> Unit,   // renamed from onDeleteClick
     onRelatedToClick: () -> Unit,
     onRemoveHeadFromQueue: () -> Unit = {},
     onTryAgain: () -> Unit = {},
 ) {
+    var showDeleteDialog by remember { mutableStateOf(false) }
+
     DefaultUiScreen(
         queue = state.errorQueue,
         onRemoveHeadFromQueue = onRemoveHeadFromQueue,
-        progressBarState = if (state.isLoadingDetails) ProgressBarState.Loading else ProgressBarState.Idle,
+        progressBarState = if (state.isLoadingDetails || state.isDeletingMeeting) ProgressBarState.Loading else ProgressBarState.Idle,
         onTryAgain = onTryAgain,
     ) {
         Column(Modifier.fillMaxSize()) {
@@ -60,7 +62,7 @@ fun MeetingDetailsScreen(
                     IconButton(onClick = onEditClick) {
                         Icon(Icons.Default.Edit, contentDescription = "Edit", tint = Color.White)
                     }
-                    IconButton(onClick = onDeleteClick) {
+                    IconButton(onClick = { showDeleteDialog = true }) {
                         Box(Modifier.background(Color(0xFFEF4444), RoundedCornerShape(8.dp)).padding(6.dp)) {
                             Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color.White, modifier = Modifier.size(18.dp))
                         }
@@ -85,6 +87,21 @@ fun MeetingDetailsScreen(
                 }
             }
         }
+    }
+
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("Delete Meeting") },
+            text = { Text("Are you sure you want to delete this meeting? This action cannot be undone.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showDeleteDialog = false
+                    onDeleteConfirmed()
+                }) { Text("Delete", color = Color(0xFFEF4444), fontWeight = FontWeight.SemiBold) }
+            },
+            dismissButton = { TextButton(onClick = { showDeleteDialog = false }) { Text("Cancel") } }
+        )
     }
 }
 

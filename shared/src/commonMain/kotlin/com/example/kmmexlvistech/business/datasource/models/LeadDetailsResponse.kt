@@ -1,5 +1,7 @@
 package com.example.kmmexlvistech.business.datasource.models
 
+import kotlinx.serialization.Serializable
+
 
 @kotlinx.serialization.Serializable
 data class LeadDetailsResponse(
@@ -9,7 +11,7 @@ data class LeadDetailsResponse(
     val errors: List<String> = emptyList()
 )
 
-@kotlinx.serialization.Serializable
+@Serializable
 data class LeadDetailDto(
     val id: String = "",
     val leadId: Int = 0,
@@ -19,11 +21,11 @@ data class LeadDetailDto(
     val mobile: String? = null,
     val phone: String? = null,
     val isactive: Boolean = true,
+    val isConverted: Boolean = false,   // add if missing
     val leadCompanyName: String? = null,
     val leadOwner: Int = 0,
     val assignedTo: Int = 0,
     val campaignId: Int? = null,
-    val isConverted: Boolean = false,
     val leadSourceId: Int = 0,
     val leadStatusId: Int = 0,
     val createddatetime: String? = null,

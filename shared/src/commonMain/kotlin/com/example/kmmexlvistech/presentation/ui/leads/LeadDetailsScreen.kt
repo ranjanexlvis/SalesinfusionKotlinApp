@@ -54,7 +54,8 @@ fun LeadDetailsScreen(
     onAssignedToClick: () -> Unit,
     onRemoveHeadFromQueue: () -> Unit = {},
     onTryAgain: () -> Unit = {},
-) {
+)
+{
     var showDeleteDialog by remember { mutableStateOf(false) }
 
     DefaultUiScreen(

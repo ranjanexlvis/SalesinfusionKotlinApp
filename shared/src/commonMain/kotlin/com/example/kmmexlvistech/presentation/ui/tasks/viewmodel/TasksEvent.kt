@@ -2,6 +2,7 @@ package com.example.kmmexlvistech.presentation.ui.tasks.viewmodel
 
 import com.example.kmmexlvistech.business.core.UIComponent
 import com.example.kmmexlvistech.business.datasource.dto.LeadDto
+import com.example.kmmexlvistech.business.datasource.models.ActivityTaskData
 
 sealed class TasksEvent {
     data class GetTasks(val token: String, val userCode: Int) : TasksEvent()
@@ -36,4 +37,8 @@ sealed class TasksEvent {
 
     data class DeleteTask(val token: String, val taskId: String) : TasksEvent()
     object ResetDeleteTaskFlag : TasksEvent()
+
+    data class LoadTaskForEdit(val task: ActivityTaskData) : TasksEvent()
+    data class UpdateTask(val token: String) : TasksEvent()
+
 }

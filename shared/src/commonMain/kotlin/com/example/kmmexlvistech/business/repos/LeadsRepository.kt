@@ -14,6 +14,8 @@ import com.example.kmmexlvistech.business.datasource.dto.LeadStatusesResponse
 import com.example.kmmexlvistech.business.datasource.dto.LeadsListResponse
 import com.example.kmmexlvistech.business.datasource.dto.LeadsRequestDto
 import com.example.kmmexlvistech.business.datasource.dto.DeleteLeadResponse
+import com.example.kmmexlvistech.business.datasource.dto.UpdateLeadRequestDto
+import com.example.kmmexlvistech.business.datasource.dto.UpdateLeadResponse
 import com.example.kmmexlvistech.business.datasource.models.LeadDetailsResponse
 import com.example.kmmexlvistech.business.datasource.services.CentralCrmApiServices
 import com.example.kmmexlvistech.business.datasource.services.LeadsApiServices
@@ -89,6 +91,16 @@ import kotlinx.coroutines.flow.flow
                 emit(DataState.Loading(ProgressBarState.Loading))
                 try {
                     emit(DataState.Data(service.deleteLead(systemToken, leadId)))
+                } catch (e: Exception) {
+                    emit(DataState.Response(UIComponent.ToastSimple(e.message ?: "Something went wrong")))
+                }
+                emit(DataState.Loading(ProgressBarState.Idle))
+            }
+
+             fun updateLead(systemToken: String, requestDto: UpdateLeadRequestDto): Flow<DataState<UpdateLeadResponse>> = flow {
+                emit(DataState.Loading(ProgressBarState.Loading))
+                try {
+                    emit(DataState.Data(service.updateLead(systemToken, requestDto)))
                 } catch (e: Exception) {
                     emit(DataState.Response(UIComponent.ToastSimple(e.message ?: "Something went wrong")))
                 }

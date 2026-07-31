@@ -1,6 +1,7 @@
 package com.example.kmmexlvistech.presentation.ui.leads.viewmodel
 
 import com.example.kmmexlvistech.business.core.UIComponent
+import com.example.kmmexlvistech.business.datasource.models.LeadDetailDto
 
 sealed class LeadsEvent {
     data class GetLeads(val token: String, val userCode: Int) : LeadsEvent()
@@ -32,4 +33,7 @@ sealed class LeadsEvent {
 
     data class DeleteLead(val token: String, val leadId: String) : LeadsEvent()
     object ResetDeleteLeadFlag : LeadsEvent()
+
+    data class LoadLeadForEdit(val lead: LeadDetailDto) : LeadsEvent()
+    data class UpdateLead(val token: String) : LeadsEvent()
 }

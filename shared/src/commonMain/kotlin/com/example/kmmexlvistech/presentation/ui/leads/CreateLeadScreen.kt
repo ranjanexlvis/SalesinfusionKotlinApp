@@ -5,17 +5,12 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.lazy.rememberLazyListState
+
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Assignment
 import androidx.compose.material.icons.filled.Business
 import androidx.compose.material.icons.filled.Call
@@ -56,9 +51,13 @@ fun CreateLeadScreen(
     onBackClick: () -> Unit,
     onSaved: () -> Unit,
 ) {
-    LaunchedEffect(state.leadSaved) {
-        if (state.leadSaved) onSaved()
-    }
+    LaunchedEffect(state.leadSaved) { if (state.leadSaved) onSaved() }
+    LaunchedEffect(state.leadUpdated) { if (state.leadUpdated) onSaved() }
+
+    val isEdit = state.isEditMode
+    val screenTitle = if (isEdit) "Edit Lead" else "Create Lead"
+    val saveButtonLabel = if (isEdit) "Update" else "Save"
+    val bottomButtonLabel = if (isEdit) "Update Lead" else "Save Lead"
 
 
      val userOptions = listOf(
@@ -157,7 +156,7 @@ fun CreateLeadScreen(
                 DropdownField(
                     label = "Select lead status",
                     icon = Icons.Default.Assignment,
-                    options = state.leadStatusOptions,   // ✅ from API
+                    options = state.leadStatusOptions,
                     selectedId = state.leadStatusId,
                     onSelected = { events(LeadsEvent.LeadStatusChanged(it)) }
                 )
@@ -166,7 +165,7 @@ fun CreateLeadScreen(
                 DropdownField(
                     label = "Select lead owner",
                     icon = Icons.Default.Person,
-                    options = userOptions,               // static stub for now
+                    options = userOptions,
                     selectedId = state.leadOwnerId,
                     onSelected = { events(LeadsEvent.LeadOwnerChanged(it)) }
                 )
@@ -175,17 +174,16 @@ fun CreateLeadScreen(
                 DropdownField(
                     label = "Select user",
                     icon = Icons.Default.Person,
-                    options = userOptions,               // static stub for now
+                    options = userOptions,
                     selectedId = state.assignedToId,
                     onSelected = { events(LeadsEvent.AssignedToChanged(it)) }
                 )
-
 
                 Label("Campaign (Optional)")
                 DropdownField(
                     label = "Select campaign",
                     icon = Icons.Default.Campaign,
-                    options = campaignOptions,           // static stub for now
+                    options = campaignOptions,
                     selectedId = state.campaignId,
                     onSelected = { events(LeadsEvent.CampaignChanged(it)) }
                 )
@@ -193,6 +191,37 @@ fun CreateLeadScreen(
                 Spacer(Modifier.height(8.dp))
                 ToggleRow("Is Active", state.isActive) { events(LeadsEvent.IsActiveChanged(it)) }
                 ToggleRow("Is Converted", state.isConverted) { events(LeadsEvent.IsConvertedChanged(it)) }
+
+                if (isEdit) {
+                    Spacer(Modifier.height(12.dp))
+                    Card(shape = RoundedCornerShape(12.dp), colors = CardDefaults.cardColors(containerColor = Color.White)) {
+                        Column(Modifier.padding(16.dp)) {
+                            Text("Audit Information", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            Spacer(Modifier.height(12.dp))
+                            Row(Modifier.fillMaxWidth()) {
+                                Column(Modifier.weight(1f)) {
+                                    Text("Lead ID", color = Color.Gray, fontSize = 11.sp)
+                                    Text(state.editingLeadDisplayId ?: "-", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                                }
+                                Column(Modifier.weight(1f)) {
+                                    Text("Last Modified", color = Color.Gray, fontSize = 11.sp)
+                                    Text(state.editingLeadLastModified ?: "-", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                                }
+                            }
+                            Spacer(Modifier.height(12.dp))
+                            Row(Modifier.fillMaxWidth()) {
+                                Column(Modifier.weight(1f)) {
+                                    Text("Created On", color = Color.Gray, fontSize = 11.sp)
+                                    Text(state.editingLeadCreatedOn ?: "-", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                                }
+                                Column(Modifier.weight(1f)) {
+                                    Text("Last Modified By", color = Color.Gray, fontSize = 11.sp)
+                                    Text(state.editingLeadLastModifiedBy ?: "-", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                                }
+                            }
+                        }
+                    }
+                }
 
                 Spacer(Modifier.height(24.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
@@ -203,11 +232,13 @@ fun CreateLeadScreen(
                     ) { Text("Cancel", color = Color(0xFF1E2A5E)) }
 
                     Button(
-                        onClick = { events(LeadsEvent.SaveLead(token)) },
+                        onClick = {
+                            if (isEdit) events(LeadsEvent.UpdateLead(token)) else events(LeadsEvent.SaveLead(token))
+                        },
                         modifier = Modifier.weight(1f).height(50.dp),
                         shape = RoundedCornerShape(10.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B5BFF))
-                    ) { Text("Save Lead", color = Color.White, fontWeight = FontWeight.SemiBold) }
+                    ) { Text(bottomButtonLabel, color = Color.White, fontWeight = FontWeight.SemiBold) }
                 }
                 Spacer(Modifier.height(16.dp))
             }

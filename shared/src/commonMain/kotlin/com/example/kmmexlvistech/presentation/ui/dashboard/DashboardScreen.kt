@@ -125,6 +125,7 @@ fun DashboardScreen(
                     systemToken = appDataStoreManager.readValue(DataStoreKeys.TOKEN) ?: ""
                 }
 
+                val leadsViewModel: LeadsViewModel = koinInject()
                 HomeScreen(
                     homeState = homeViewModel.state.value,
                     events = homeViewModel::onEvent,
@@ -141,10 +142,11 @@ fun DashboardScreen(
                     },
                     onQuickActionClick = { action ->
                         val target = action.routePath?.let { routeForPath(it) }
+                        if (target == "leads/create") {
+                            leadsViewModel.onEvent(LeadsEvent.ResetCreateLeadForm)
+                        }
                         if (!target.isNullOrBlank()) {
                             tabNavigator.navigate(target)
-                        } else {
-                            println("AppDebug: no route mapping found for quick action, path=${action.routePath}")
                         }
                     },
                 )
@@ -185,12 +187,14 @@ fun DashboardScreen(
                     systemToken = systemToken,
                     userCode = 1021,
                     onLeadClick = { lead ->
-                        println("AppDebug: setting leadId = ${lead.id}, vm=$leadsViewModel")
-                        leadsViewModel.onEvent(LeadsEvent.SelectLead(lead.id.toString()))
-                        println("AppDebug: immediately after set, state.selectedLeadId = ${leadsViewModel.state.value.selectedLeadId}")
+                        leadsViewModel.onEvent(LeadsEvent.SelectLead(lead.id))
                         tabNavigator.navigate("leads/details")
                     },
                     onLeadMenuClick = { lead -> /* TODO */ },
+                    onCreateLeadClick = {
+                        leadsViewModel.onEvent(LeadsEvent.ResetCreateLeadForm)
+                        tabNavigator.navigate("leads/create")
+                    },
                 )
             }
             scene(route = "leads/create") {
@@ -199,7 +203,8 @@ fun DashboardScreen(
 
                 LaunchedEffect(Unit) {
                     systemToken = appDataStoreManager.readValue(DataStoreKeys.TOKEN) ?: ""
-                    leadsViewModel.onEvent(LeadsEvent.ResetCreateLeadForm)
+                    // No reset here anymore — the caller (Create button or Edit button) is now
+                    // solely responsible for setting up state before navigating in.
                 }
                 LaunchedEffect(systemToken) {
                     if (systemToken.isNotEmpty()) {
@@ -212,7 +217,10 @@ fun DashboardScreen(
                     events = leadsViewModel::onEvent,
                     token = systemToken,
                     onBackClick = { tabNavigator.goBack() },
-                    onSaved = { tabNavigator.goBack() }
+                    onSaved = {
+                        leadsViewModel.onEvent(LeadsEvent.ResetCreateLeadForm) // clean up after finishing, either mode
+                        tabNavigator.goBack()
+                    }
                 )
             }
 
@@ -239,10 +247,13 @@ fun DashboardScreen(
                 LeadDetailsScreen(
                     state = leadsViewModel.state.value,
                     onBackClick = { tabNavigator.goBack() },
-                    onEditClick = { /* TODO */ },
-                    onDeleteConfirmed = {
-                        leadsViewModel.onEvent(LeadsEvent.DeleteLead(systemToken, leadId))
+                    onEditClick = {
+                        leadsViewModel.state.value.lead?.let { lead ->
+                            leadsViewModel.onEvent(LeadsEvent.LoadLeadForEdit(lead))
+                        }
+                        tabNavigator.navigate("leads/create")
                     },
+                    onDeleteConfirmed = { leadsViewModel.onEvent(LeadsEvent.DeleteLead(systemToken, leadId)) },
                     onAssignedToClick = { /* TODO */ },
                     onRemoveHeadFromQueue = { leadsViewModel.onEvent(LeadsEvent.OnRemoveHeadFromQueue) },
                 )
@@ -279,7 +290,8 @@ fun DashboardScreen(
 
                 LaunchedEffect(Unit) {
                     systemToken = appDataStoreManager.readValue(DataStoreKeys.TOKEN) ?: ""
-                    taskViewModel.onEvent(TasksEvent.ResetCreateTaskForm)
+                    // No unconditional reset here — Create button and Edit button are each
+                    // responsible for setting up state before navigating in (same fix as Leads).
                 }
                 LaunchedEffect(systemToken) {
                     if (systemToken.isNotEmpty()) {
@@ -292,7 +304,10 @@ fun DashboardScreen(
                     events = taskViewModel::onEvent,
                     token = systemToken,
                     onBackClick = { tabNavigator.goBack() },
-                    onSaved = { tabNavigator.goBack() }
+                    onSaved = {
+                        taskViewModel.onEvent(TasksEvent.ResetCreateTaskForm)
+                        tabNavigator.goBack()
+                    }
                 )
             }
 
@@ -369,13 +384,17 @@ fun DashboardScreen(
                     }
                 }
 
+                // In "tasks/details" scene — wire the edit click
                 TaskDetailsScreen(
                     state = taskViewModel.state.value,
                     onBackClick = { tabNavigator.goBack() },
-                    onEditClick = { /* TODO */ },
-                    onDeleteConfirmed = {
-                        taskViewModel.onEvent(TasksEvent.DeleteTask(systemToken, taskId))
+                    onEditClick = {
+                        taskViewModel.state.value.task?.let { task ->
+                            taskViewModel.onEvent(TasksEvent.LoadTaskForEdit(task))
+                        }
+                        tabNavigator.navigate("tasks/create")
                     },
+                    onDeleteConfirmed = { taskViewModel.onEvent(TasksEvent.DeleteTask(systemToken, taskId)) },
                     onRemoveHeadFromQueue = { taskViewModel.onEvent(TasksEvent.OnRemoveHeadFromQueue) },
                 )
             }
@@ -439,13 +458,20 @@ fun DashboardScreen(
                         meetingsViewModel.onEvent(MeetingsEvent.LoadMeetingDetails(systemToken, meetingId))
                     }
                 }
+                LaunchedEffect(meetingsViewModel.state.value.meetingDeleted) {
+                    if (meetingsViewModel.state.value.meetingDeleted) {
+                        meetingsViewModel.onEvent(MeetingsEvent.ResetDeleteMeetingFlag)
+                        tabNavigator.goBack()
+                    }
+                }
 
                 MeetingDetailsScreen(
                     state = meetingsViewModel.state.value,
                     onBackClick = { tabNavigator.goBack() },
                     onEditClick = { /* TODO */ },
-                    onDeleteClick = { /* TODO */ },
-                    onRelatedToClick = { tabNavigator.navigate("leads/details") }, // reuse SelectLead first if needed
+                    onDeleteConfirmed = { meetingsViewModel.onEvent(MeetingsEvent.DeleteMeeting(systemToken, meetingId)) },
+                    onRelatedToClick = { tabNavigator.navigate("leads/details") },
+                    onRemoveHeadFromQueue = { meetingsViewModel.onEvent(MeetingsEvent.OnRemoveHeadFromQueue) },
                 )
             }
 

@@ -35,15 +35,16 @@ private val statusFilters = listOf(
     StatusFilter(4, "Proposal"),
 )
 
-@Composable
-fun LeadsScreen(
-    leadsState: LeadsState,
-    events: (LeadsEvent) -> Unit,
-    systemToken: String,
-    userCode: Int,
-    onLeadClick: (LeadDto) -> Unit = {},
-    onLeadMenuClick: (LeadDto) -> Unit = {},
-) {
+    @Composable
+    fun LeadsScreen(
+        leadsState: LeadsState,
+        events: (LeadsEvent) -> Unit,
+        systemToken: String,
+        userCode: Int,
+        onLeadClick: (LeadDto) -> Unit,
+        onLeadMenuClick: (LeadDto) -> Unit,
+        onCreateLeadClick: () -> Unit,   // ⬅️ new param
+    ) {
     LaunchedEffect(systemToken, userCode) {
         if (systemToken.isNotBlank()) {
             events(LeadsEvent.GetLeads(systemToken, userCode))

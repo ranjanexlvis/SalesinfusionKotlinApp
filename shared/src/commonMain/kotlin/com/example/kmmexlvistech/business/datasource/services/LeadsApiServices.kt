@@ -9,6 +9,8 @@ import com.example.kmmexlvistech.business.datasource.dto.LeadsRequestDto
 import com.example.kmmexlvistech.business.datasource.dto.LoginRequestDTO
 import com.example.kmmexlvistech.business.datasource.dto.QuickActionDto
 import com.example.kmmexlvistech.business.datasource.dto.TokenRequestDTO
+import com.example.kmmexlvistech.business.datasource.dto.UpdateLeadRequestDto
+import com.example.kmmexlvistech.business.datasource.dto.UpdateLeadResponse
 import com.example.kmmexlvistech.business.datasource.models.CommonGenericResponse
 import com.example.kmmexlvistech.business.datasource.models.GetWidgetActivityResponse
 import com.example.kmmexlvistech.business.datasource.models.LeadDetailsResponse
@@ -25,11 +27,13 @@ interface LeadsApiServices {
         const val GET_LEADS_DETAILS = "Lead"
         const val CREATE_LEAD = "Lead"
         const val DELETE_LEAD = "Lead/Delete"
+        const val UPDATE_LEAD = "Lead"
     }
 
     suspend fun getLeadsList(token: String,leadsRequestDto: LeadsRequestDto): LeadsListResponse
     suspend fun getLeadsDetails(token: String,id:String): LeadDetailsResponse
     suspend fun createLead(token: String, createLeadRequestDto: CreateLeadRequestDto): CreateLeadResponse
+    suspend fun updateLead(token: String, requestDto: UpdateLeadRequestDto): UpdateLeadResponse
 
     suspend fun deleteLead(token: String, id: String): DeleteLeadResponse
 

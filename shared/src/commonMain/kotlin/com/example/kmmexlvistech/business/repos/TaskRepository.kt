@@ -18,6 +18,8 @@ import com.example.kmmexlvistech.business.datasource.dto.LeadsSortDto
 import com.example.kmmexlvistech.business.datasource.dto.QuickActionDto
 import com.example.kmmexlvistech.business.datasource.dto.TaskListResponse
 import com.example.kmmexlvistech.business.datasource.dto.TaskRequestDto
+import com.example.kmmexlvistech.business.datasource.dto.UpdateTaskRequestDto
+import com.example.kmmexlvistech.business.datasource.dto.UpdateTaskResponse
 import com.example.kmmexlvistech.business.datasource.models.ActivityPrioritiesResponse
 import com.example.kmmexlvistech.business.datasource.models.ActivityStatusesResponse
 import com.example.kmmexlvistech.business.datasource.models.GetWidgetActivityResponse
@@ -142,8 +144,13 @@ class TaskRepository(
         emit(DataState.Loading(ProgressBarState.Idle))
     }
 
-
-
-
-
+     fun updateTask(systemToken: String, requestDto: UpdateTaskRequestDto): Flow<DataState<UpdateTaskResponse>> = flow {
+        emit(DataState.Loading(ProgressBarState.Loading))
+        try {
+            emit(DataState.Data(service.updateTask(systemToken, requestDto)))
+        } catch (e: Exception) {
+            emit(DataState.Response(UIComponent.ToastSimple(e.message ?: "Something went wrong")))
+        }
+        emit(DataState.Loading(ProgressBarState.Idle))
+    }
 }

@@ -66,23 +66,31 @@ fun CreateTaskScreen(
     onSaved: () -> Unit,
 ) {
     LaunchedEffect(state.taskSaved) { if (state.taskSaved) onSaved() }
+    LaunchedEffect(state.taskUpdated) { if (state.taskUpdated) onSaved() }
+
+    val isEdit = state.isEditMode
+    val screenTitle = if (isEdit) "Edit Task" else "Create Task"
+    val topBarButtonLabel = if (isEdit) "Update" else "Save"
+    val bottomButtonLabel = if (isEdit) "Update Task" else "Save Task"
 
     DefaultUiScreen(
         queue = state.errorQueue,
         onRemoveHeadFromQueue = { events(TasksEvent.OnRemoveHeadFromQueue) },
-        progressBarState = if (state.isSavingTask) ProgressBarState.Loading else ProgressBarState.Idle,
+        progressBarState = if (state.isSavingTask || state.isUpdatingTask) ProgressBarState.Loading else ProgressBarState.Idle,
     ) {
         Column(Modifier.fillMaxSize()) {
             TopAppBar(
-                title = { Text("Create Task", color = Color.White, fontWeight = FontWeight.SemiBold) },
+                title = { Text(screenTitle, color = Color.White, fontWeight = FontWeight.SemiBold) },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = Color.White)
                     }
                 },
                 actions = {
-                    TextButton(onClick = { events(TasksEvent.SaveTask(token)) }) {
-                        Text("Save", color = Color.White, fontWeight = FontWeight.SemiBold)
+                    TextButton(onClick = {
+                        if (isEdit) events(TasksEvent.UpdateTask(token)) else events(TasksEvent.SaveTask(token))
+                    }) {
+                        Text(topBarButtonLabel, color = Color.White, fontWeight = FontWeight.SemiBold)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF1E2A5E))
@@ -233,7 +241,48 @@ fun CreateTaskScreen(
                     ) { Text("Save Task", color = Color.White, fontWeight = FontWeight.SemiBold) }
                 }
                 Spacer(Modifier.height(16.dp))
+
+                if (isEdit) {
+                    Spacer(Modifier.height(12.dp))
+                    Card(shape = RoundedCornerShape(12.dp), colors = CardDefaults.cardColors(containerColor = Color.White)) {
+                        Column(Modifier.padding(16.dp)) {
+                            Text("Audit Information", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            Spacer(Modifier.height(12.dp))
+                            Row(Modifier.fillMaxWidth()) {
+                                Column(Modifier.weight(1f)) {
+                                    Text("Task ID", color = Color.Gray, fontSize = 11.sp)
+                                    Text(state.editingTaskDisplayId ?: "-", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                                }
+                                Column(Modifier.weight(1f)) {
+                                    Text("Last Modified", color = Color.Gray, fontSize = 11.sp)
+                                    Text(state.editingTaskLastModified ?: "-", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                                }
+                            }
+                            Spacer(Modifier.height(12.dp))
+                            Text("Created On", color = Color.Gray, fontSize = 11.sp)
+                            Text(state.editingTaskCreatedOn ?: "-", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                        }
+                    }
+                }
+
+                // Single button row — adapts for both Create and Edit modes
+                Spacer(Modifier.height(24.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+                    OutlinedButton(onClick = onBackClick, modifier = Modifier.weight(1f).height(50.dp), shape = RoundedCornerShape(10.dp)) {
+                        Text("Cancel", color = Color(0xFF1E2A5E))
+                    }
+                        }
+
+                Button(
+                    onClick = {
+                        if (isEdit) events(TasksEvent.UpdateTask(token)) else events(TasksEvent.SaveTask(token))
+                    },
+                    modifier = Modifier.weight(1f).height(50.dp),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B5BFF))
+                ) { Text(bottomButtonLabel, color = Color.White, fontWeight = FontWeight.SemiBold) }
             }
+            Spacer(Modifier.height(16.dp))
         }
     }
 }

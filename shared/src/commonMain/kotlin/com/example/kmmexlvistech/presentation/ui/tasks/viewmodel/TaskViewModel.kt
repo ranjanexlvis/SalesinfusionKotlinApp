@@ -8,11 +8,16 @@ import com.example.kmmexlvistech.business.core.ProgressBarState
 import com.example.kmmexlvistech.business.core.Queue
 import com.example.kmmexlvistech.business.core.UIComponent
 import com.example.kmmexlvistech.business.datasource.dto.CreateTaskRequestDto
+import com.example.kmmexlvistech.business.datasource.dto.LeadDto
 import com.example.kmmexlvistech.business.datasource.dto.TaskFilterDto
 import com.example.kmmexlvistech.business.datasource.dto.TaskRequestDto
 import com.example.kmmexlvistech.business.datasource.dto.TaskSortDto
+import com.example.kmmexlvistech.business.datasource.dto.UpdateTaskRequestDto
+import com.example.kmmexlvistech.business.datasource.models.ActivityTaskData
+import com.example.kmmexlvistech.business.datasource.models.SelectedLeadRef
 import com.example.kmmexlvistech.business.repos.TaskRepository
 import com.example.kmmexlvistech.presentation.ui.common.DropdownOption
+import com.example.kmmexlvistech.presentation.ui.leads.formatDate
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
@@ -61,7 +66,13 @@ class TaskViewModel(
                 searchLeads(event.token, event.query)
             }
             is TasksEvent.LeadSelected -> state.value = state.value.copy(
-                selectedLead = event.lead, leadSearchResults = emptyList(), leadSearchQuery = event.lead.firstName
+                selectedLead = SelectedLeadRef(
+                    id = event.lead.id,
+                    leadId = event.lead.leadId,
+                    displayName = "${event.lead.firstName} ${event.lead.lastName}".trim()
+                ),
+                leadSearchResults = emptyList(),
+                leadSearchQuery = "${event.lead.firstName} ${event.lead.lastName}".trim()
             )
             is TasksEvent.TaskPriorityChanged -> state.value = state.value.copy(priorityId = event.id)
             is TasksEvent.TaskStatusChanged -> state.value = state.value.copy(statusId = event.id)
@@ -87,6 +98,103 @@ class TaskViewModel(
             )
             is TasksEvent.DeleteTask -> deleteTask(event.token, event.taskId)
             is TasksEvent.ResetDeleteTaskFlag -> state.value = state.value.copy(taskDeleted = false)
+
+            is TasksEvent.LoadTaskForEdit -> loadTaskForEdit(event.task)
+            is TasksEvent.UpdateTask -> updateTask(event.token)
+
+
+        }
+    }
+
+    private fun loadTaskForEdit(task: ActivityTaskData) {
+        state.value = state.value.copy(
+            isEditMode = true,
+            editingTaskId = task.id,
+            subject = task.subject,
+            description = task.description,
+            relatedRecordType = "LEAD",
+            selectedLead = SelectedLeadRef(
+                id = task.lead.id,
+                leadId = task.lead.leadId,
+                displayName = task.lead.leadName
+            ),
+            leadSearchQuery = task.lead.leadName,
+            leadSearchResults = emptyList(),
+            priorityId = task.priority.priorityId,
+            statusId = task.status.statusId,
+            assignedToUserId = task.assignedTo.userid,
+            startDate = isoToDisplayDate(task.startDateTime),
+            startTime = isoToDisplayTime(task.startDateTime),
+            endDate = isoToDisplayDate(task.endDateTime),
+            endTime = isoToDisplayTime(task.endDateTime),
+            dueDate = isoToDisplayDate(task.dueDateTime),
+            dueTime = isoToDisplayTime(task.dueDateTime),
+            reminderDate = isoToDisplayDate(task.reminderDateTime),
+            reminderTime = isoToDisplayTime(task.reminderDateTime),
+            isSavingTask = false, saveTaskError = null, taskSaved = false,
+            isUpdatingTask = false, updateTaskError = null, taskUpdated = false,
+            editingTaskDisplayId = task.taskId.toString(),
+            editingTaskCreatedOn = formatDate(task.createddatetime),
+            editingTaskLastModified = formatDate(task.modifieddatetime ?: task.createddatetime),
+        )
+    }
+
+    private fun updateTask(token: String) {
+        val s = state.value
+        val taskId = s.editingTaskId
+
+        if (taskId.isNullOrBlank()) {
+            appendToMessageQueue(UIComponent.ToastSimple("Missing task id for update"))
+            return
+        }
+        if (s.subject.isBlank() || s.selectedLead == null || s.priorityId == null ||
+            s.statusId == null || s.assignedToUserId == null ||
+            s.startDate.isBlank() || s.endDate.isBlank() || s.dueDate.isBlank()
+        ) {
+            appendToMessageQueue(UIComponent.ToastSimple("Please fill all required fields"))
+            return
+        }
+
+        viewModelScope.launch {
+            state.value = state.value.copy(isUpdatingTask = true, updateTaskError = null)
+
+            val requestDto = UpdateTaskRequestDto(
+                id = taskId,
+                subject = s.subject,
+                description = s.description.ifBlank { null },
+                priorityId = s.priorityId,
+                statusId = s.statusId,
+                startDateTime = displayToIso(s.startDate, s.startTime),
+                endDateTime = displayToIso(s.endDate, s.endTime),
+                dueDateTime = displayToIso(s.dueDate, s.dueTime),
+                completionDateTime = null, // no completion UI yet — leave untouched unless you want a "mark complete" toggle
+                reminderDateTime = if (s.reminderDate.isNotBlank()) displayToIso(s.reminderDate, s.reminderTime) else null,
+                assignedTo = s.assignedToUserId,
+                leadId = if (s.relatedRecordType == "LEAD") s.selectedLead.id else null,
+                accountId = null,
+                contactId = null,
+            )
+
+            taskRepository.updateTask(token, requestDto).onEach { dataState ->
+                when (dataState) {
+                    is DataState.NetworkStatus -> {}
+                    is DataState.Response -> {
+                        state.value = state.value.copy(isUpdatingTask = false, updateTaskError = "Failed to update task")
+                        appendToMessageQueue(dataState.uiComponent)
+                    }
+                    is DataState.Data -> {
+                        if (dataState.data?.status == true) {
+                            state.value = state.value.copy(isUpdatingTask = false, taskUpdated = true)
+                            appendToMessageQueue(UIComponent.ToastSimple(dataState.data.message ?: "Task updated successfully"))
+                        } else {
+                            state.value = state.value.copy(isUpdatingTask = false, updateTaskError = dataState.data?.message ?: "Something went wrong")
+                        }
+                    }
+                    is DataState.Loading -> {
+                        state.value = state.value.copy(isUpdatingTask = dataState.progressBarState == ProgressBarState.Loading)
+                    }
+                }
+            }.launchIn(viewModelScope)
         }
     }
 
@@ -119,6 +227,8 @@ class TaskViewModel(
                     is DataState.Loading -> {
                         state.value = state.value.copy(isDeletingTask = dataState.progressBarState == ProgressBarState.Loading)
                     }
+
+
                 }
             }.launchIn(viewModelScope)
         }
@@ -335,5 +445,53 @@ class TaskViewModel(
         } catch (e: Exception) {
             println("AppDebug: removeHeadMessage: Nothing to remove")
         }
+    }
+
+    private fun isoToDisplayDate(iso: String?): String {
+        if (iso.isNullOrBlank()) return ""
+        return try {
+            val dt = kotlinx.datetime.LocalDateTime.parse(iso.substringBefore("."))
+            val month = dt.month.name.take(3).lowercase().replaceFirstChar { it.uppercase() }
+            "${dt.dayOfMonth} $month ${dt.year}"
+        } catch (e: Exception) { "" }
+    }
+
+    private fun isoToDisplayTime(iso: String?): String {
+        if (iso.isNullOrBlank()) return ""
+        return try {
+            val dt = kotlinx.datetime.LocalDateTime.parse(iso.substringBefore("."))
+            val hour = if (dt.hour % 12 == 0) 12 else dt.hour % 12
+            val amPm = if (dt.hour < 12) "AM" else "PM"
+            val hourStr = hour.toString().padStart(2, '0')
+            val minuteStr = dt.minute.toString().padStart(2, '0')
+            "$hourStr:$minuteStr $amPm"
+        } catch (e: Exception) { "" }
+    }
+
+    // Rebuilds "yyyy-MM-ddTHH:mm:00" from a display date "10 May 2026" + time "10:00 AM"
+    private fun displayToIso(date: String, time: String): String {
+        return try {
+            val parts = date.trim().split(" ")
+            val day = parts[0].toInt()
+            val monthNames = listOf("jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec")
+            val month = monthNames.indexOf(parts[1].take(3).lowercase()) + 1
+            val year = parts[2].toInt()
+
+            val timeParts = time.trim().split(" ")
+            val (hh, mm) = timeParts[0].split(":").map { it.toInt() }
+            val isPm = timeParts.getOrNull(1)?.uppercase() == "PM"
+            val hour24 = when {
+                hh == 12 && !isPm -> 0
+                hh == 12 && isPm -> 12
+                isPm -> hh + 12
+                else -> hh
+            }
+
+            val monthStr = month.toString().padStart(2, '0')
+            val dayStr = day.toString().padStart(2, '0')
+            val hourStr = hour24.toString().padStart(2, '0')
+            val minStr = mm.toString().padStart(2, '0')
+            "$year-$monthStr-${dayStr}T$hourStr:$minStr:00"
+        } catch (e: Exception) { "" }
     }
 }

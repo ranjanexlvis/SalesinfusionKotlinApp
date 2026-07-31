@@ -8,6 +8,8 @@ import com.example.kmmexlvistech.business.datasource.dto.LeadsListResponse
 import com.example.kmmexlvistech.business.datasource.dto.LeadsRequestDto
 import com.example.kmmexlvistech.business.datasource.dto.TaskListResponse
 import com.example.kmmexlvistech.business.datasource.dto.TaskRequestDto
+import com.example.kmmexlvistech.business.datasource.dto.UpdateTaskRequestDto
+import com.example.kmmexlvistech.business.datasource.dto.UpdateTaskResponse
 import com.example.kmmexlvistech.business.datasource.models.GetWidgetActivityResponse
 import com.example.kmmexlvistech.business.datasource.models.LeadDetailsResponse
 import com.example.kmmexlvistech.business.datasource.models.TaskDetailResponse
@@ -19,6 +21,7 @@ import io.ktor.client.request.delete
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.post
+import io.ktor.client.request.put
 import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
@@ -70,6 +73,15 @@ class TaskServiceImpl(private val httpClient: HttpClient) : TaskApiServices {
             }
             header("Authorization", "Bearer $token")
             contentType(ContentType.Application.Json)
+        }.body()
+    }
+
+    override suspend fun updateTask(token: String, requestDto: UpdateTaskRequestDto): UpdateTaskResponse {
+        return httpClient.put {
+            url { takeFrom(BASE_URL_SERVER_ONE); encodedPath += TaskApiServices.UPDATE_TASK }
+            header("Authorization", "Bearer $token")
+            contentType(ContentType.Application.Json)
+            setBody(requestDto)
         }.body()
     }
 }

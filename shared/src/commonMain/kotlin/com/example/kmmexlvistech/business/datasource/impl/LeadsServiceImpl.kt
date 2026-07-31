@@ -6,6 +6,8 @@ import com.example.kmmexlvistech.business.datasource.dto.CreateLeadResponse
 import com.example.kmmexlvistech.business.datasource.dto.LeadsListResponse
 import com.example.kmmexlvistech.business.datasource.dto.LeadsRequestDto
 import com.example.kmmexlvistech.business.datasource.dto.DeleteLeadResponse
+import com.example.kmmexlvistech.business.datasource.dto.UpdateLeadRequestDto
+import com.example.kmmexlvistech.business.datasource.dto.UpdateLeadResponse
 import com.example.kmmexlvistech.business.datasource.models.LeadDetailsResponse
 import com.example.kmmexlvistech.business.datasource.services.LeadsApiServices
 import io.ktor.client.HttpClient
@@ -14,6 +16,7 @@ import io.ktor.client.request.delete
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.post
+import io.ktor.client.request.put
 import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
@@ -65,6 +68,18 @@ class LeadsServiceImpl(private val httpClient: HttpClient) : LeadsApiServices {
             }
             header("Authorization", "Bearer $token")
             contentType(ContentType.Application.Json)
+        }.body()
+    }
+
+    override suspend fun updateLead(token: String, requestDto: UpdateLeadRequestDto): UpdateLeadResponse {
+        return httpClient.put {
+            url {
+                takeFrom(BASE_URL_SERVER_ONE)
+                encodedPath += LeadsApiServices.UPDATE_LEAD
+            }
+            header("Authorization", "Bearer $token")
+            contentType(ContentType.Application.Json)
+            setBody(requestDto)
         }.body()
     }
 }

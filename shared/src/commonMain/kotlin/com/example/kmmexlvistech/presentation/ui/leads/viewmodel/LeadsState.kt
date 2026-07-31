@@ -51,6 +51,19 @@ data class LeadsState(
     val isDeletingLead: Boolean = false,
     val deleteLeadError: String? = null,
     val leadDeleted: Boolean = false,
+
+    val isEditMode: Boolean = false,
+    val editingLeadId: String? = null,   // GUID being edited
+    val isUpdatingLead: Boolean = false,
+    val updateLeadError: String? = null,
+    val leadUpdated: Boolean = false,
+
+
+    val editingLeadDisplayId: String? = null,
+    val editingLeadCreatedOn: String? = null,
+    val editingLeadLastModified: String? = null,
+    val editingLeadLastModifiedBy: String? = null,
+
 ) {
 
     val hasMore: Boolean get() = leads.size < totalRecords

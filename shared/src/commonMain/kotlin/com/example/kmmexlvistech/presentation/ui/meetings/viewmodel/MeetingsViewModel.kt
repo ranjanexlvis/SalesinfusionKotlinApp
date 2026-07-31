@@ -85,6 +85,42 @@ class MeetingsViewModel(private val meetingsRepository: MeetingsRepository) : Vi
                 startDateTimeMillis = null, endDateTimeMillis = null, reminderDateTimeMillis = null,
                 isSavingMeeting = false, saveMeetingError = null, meetingSaved = false,
             )
+            is MeetingsEvent.DeleteMeeting -> deleteMeeting(event.token, event.meetingId)
+            is MeetingsEvent.ResetDeleteMeetingFlag -> state.value = state.value.copy(meetingDeleted = false)
+        }
+    }
+
+    private fun deleteMeeting(token: String, meetingId: String) {
+        viewModelScope.launch {
+            state.value = state.value.copy(isDeletingMeeting = true, deleteMeetingError = null)
+
+            meetingsRepository.deleteMeeting(token, meetingId).onEach { dataState ->
+                when (dataState) {
+                    is DataState.NetworkStatus -> {}
+                    is DataState.Response -> {
+                        state.value = state.value.copy(isDeletingMeeting = false, deleteMeetingError = "Failed to delete meeting")
+                        appendToMessageQueue(dataState.uiComponent)
+                    }
+                    is DataState.Data -> {
+                        if (dataState.data?.status == true) {
+                            state.value = state.value.copy(
+                                isDeletingMeeting = false,
+                                meetingDeleted = true,
+                                meetings = state.value.meetings.filterNot { it.id == meetingId },
+                            )
+                            appendToMessageQueue(UIComponent.ToastSimple(dataState.data.message ?: "Meeting deleted successfully"))
+                        } else {
+                            state.value = state.value.copy(
+                                isDeletingMeeting = false,
+                                deleteMeetingError = dataState.data?.message ?: "Something went wrong"
+                            )
+                        }
+                    }
+                    is DataState.Loading -> {
+                        state.value = state.value.copy(isDeletingMeeting = dataState.progressBarState == ProgressBarState.Loading)
+                    }
+                }
+            }.launchIn(viewModelScope)
         }
     }
 

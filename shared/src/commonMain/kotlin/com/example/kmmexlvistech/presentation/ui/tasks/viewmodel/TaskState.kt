@@ -7,6 +7,7 @@ import com.example.kmmexlvistech.business.core.UIComponent
 import com.example.kmmexlvistech.business.datasource.dto.LeadDto
 import com.example.kmmexlvistech.business.datasource.dto.TaskDto
 import com.example.kmmexlvistech.business.datasource.models.ActivityTaskData
+import com.example.kmmexlvistech.business.datasource.models.SelectedLeadRef
 import com.example.kmmexlvistech.presentation.ui.common.DropdownOption
 
 data class TaskState(
@@ -37,8 +38,6 @@ data class TaskState(
     val description: String = "",
     val relatedRecordType: String = "LEAD", // "LEAD" | "ACCOUNT" | "CONTACT"
     val leadSearchQuery: String = "",
-    val leadSearchResults: List<LeadDto> = emptyList(),
-    val selectedLead: LeadDto? = null,
     val priorityId: Int? = null,
     val statusId: Int? = null,
     val assignedToUserId: Int? = null,
@@ -54,6 +53,20 @@ data class TaskState(
     val isDeletingTask: Boolean = false,
     val deleteTaskError: String? = null,
     val taskDeleted: Boolean = false,
+
+
+    val isEditMode: Boolean = false,
+    val editingTaskId: String? = null,   // GUID being edited
+    val isUpdatingTask: Boolean = false,
+    val updateTaskError: String? = null,
+    val taskUpdated: Boolean = false,
+
+    val editingTaskDisplayId: String? = null,
+    val editingTaskCreatedOn: String? = null,
+    val editingTaskLastModified: String? = null,
+
+    val leadSearchResults: List<LeadDto> = emptyList(), // stays LeadDto — these come straight from search API
+    val selectedLead: SelectedLeadRef? = null,
 ) {
     val hasMore: Boolean get() = tasks.size < totalRecords
 }
