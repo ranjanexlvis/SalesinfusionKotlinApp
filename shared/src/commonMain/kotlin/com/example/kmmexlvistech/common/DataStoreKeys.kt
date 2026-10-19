@@ -11,4 +11,5 @@ object DataStoreKeys {
     const val DeviceType = "com.exlvis.DeviceType"
     const val DeviceId = "com.exlvis.DeviceId"
     const val Logout = "com.exlvis.Logout"
+    const val THEME_MODE = "com.exlvis.theme"
 }

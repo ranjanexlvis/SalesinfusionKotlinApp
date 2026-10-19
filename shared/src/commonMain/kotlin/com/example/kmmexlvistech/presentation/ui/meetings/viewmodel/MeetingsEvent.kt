@@ -2,6 +2,7 @@ package com.example.kmmexlvistech.presentation.ui.meetings.viewmodel
 
 import com.example.kmmexlvistech.business.core.UIComponent
 import com.example.kmmexlvistech.business.datasource.dto.LeadDto
+import com.example.kmmexlvistech.business.datasource.models.ActivityMeetingData
 
 sealed class MeetingsEvent {
     data class GetMeetingss(val token: String, val userCode: Int) : MeetingsEvent()
@@ -33,5 +34,7 @@ sealed class MeetingsEvent {
     object ResetCreateMeetingForm : MeetingsEvent()
     data class DeleteMeeting(val token: String, val meetingId: String) : MeetingsEvent()
     object ResetDeleteMeetingFlag : MeetingsEvent()
+    // MeetingsEvent: add
+    data class LoadMeetingForEdit(val meeting: ActivityMeetingData) : MeetingsEvent()
 
 }

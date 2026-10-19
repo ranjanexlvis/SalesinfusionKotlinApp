@@ -13,6 +13,8 @@ import com.example.kmmexlvistech.business.datasource.dto.MeetingsListResponse
 import com.example.kmmexlvistech.business.datasource.dto.MeetingsRequestDto
 import com.example.kmmexlvistech.business.datasource.dto.QuickActionDto
 import com.example.kmmexlvistech.business.datasource.dto.TokenRequestDTO
+import com.example.kmmexlvistech.business.datasource.dto.UpdateMeetingRequestDto
+import com.example.kmmexlvistech.business.datasource.dto.UpdateMeetingResponse
 import com.example.kmmexlvistech.business.datasource.models.CommonGenericResponse
 import com.example.kmmexlvistech.business.datasource.models.GetWidgetActivityResponse
 import com.example.kmmexlvistech.business.datasource.models.LoginResponse
@@ -24,6 +26,7 @@ interface MeetingsApiServices {
     companion object {
         const val GET_MEETINGS_LIST = "Meeting/List"
         const val GET_MEETING_DETAILS = "Meeting"
+        const val UPDATE_MEETING = "Meeting"
         const val CREATE_MEETING = "Meeting"
         const val SEARCH_LEADS = "Lead/GetList"
         const val DELETE_MEETING = "Meeting/Delete"
@@ -33,5 +36,8 @@ interface MeetingsApiServices {
     suspend fun createMeeting(token: String, requestDto: CreateMeetingRequestDto): CreateMeetingResponse
     suspend fun searchLeads(token: String, requestDto: LeadsRequestDto): LeadsListResponse
     suspend fun deleteMeeting(token: String, id: String): DeleteMeetingResponse
+
+    suspend fun updateMeeting(token: String, requestDto: UpdateMeetingRequestDto): UpdateMeetingResponse
+
 
 }

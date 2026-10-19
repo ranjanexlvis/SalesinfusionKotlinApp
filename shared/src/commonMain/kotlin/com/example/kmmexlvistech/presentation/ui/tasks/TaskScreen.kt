@@ -229,12 +229,6 @@ private fun priorityColorFor(priorityName: String): Color = when (priorityName.l
     else -> Color(0xFF607D8B)
 }
 
-/**
- * dueDateTime arrives as a raw ISO string ("2026-05-10T18:00:00") with no
- * timezone info. This does a minimal split rather than pulling in a full
- * date parser — swap for kotlinx-datetime formatting once you decide how
- * due dates should read (e.g. "Due in 2 days" like the Leads screenshot).
- */
 private fun formatDueDate(raw: String): String {
     return try {
         val datePart = raw.substringBefore("T")

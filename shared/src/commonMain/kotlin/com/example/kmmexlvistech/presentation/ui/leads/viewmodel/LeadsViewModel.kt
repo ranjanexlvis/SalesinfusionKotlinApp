@@ -102,8 +102,6 @@ class LeadsViewModel(
             email = lead.email ?: "",
             leadSourceId = lead.leadSourceId,
             leadStatusId = lead.leadStatusId,
-            leadOwnerId = lead.leadOwner,
-            assignedToId = lead.assignedTo,
             campaignId = lead.campaignId,
             isActive = lead.isactive,
             isConverted = lead.isConverted,

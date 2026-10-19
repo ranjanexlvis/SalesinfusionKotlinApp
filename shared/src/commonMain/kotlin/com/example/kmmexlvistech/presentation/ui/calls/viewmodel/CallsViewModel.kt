@@ -11,11 +11,14 @@ import com.example.kmmexlvistech.business.datasource.dto.CallFilterDto
 import com.example.kmmexlvistech.business.datasource.dto.CallSortDto
 import com.example.kmmexlvistech.business.datasource.dto.CallsRequestDto
 import com.example.kmmexlvistech.business.datasource.dto.CreateCallRequestDto
+import com.example.kmmexlvistech.business.datasource.models.ActivityCallData
+import com.example.kmmexlvistech.business.datasource.models.UpdateCallRequestDto
 import com.example.kmmexlvistech.business.repos.CallsRepository
 import com.example.kmmexlvistech.presentation.ui.common.DropdownOption
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
+import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
 import moe.tlaster.precompose.viewmodel.ViewModel
 import moe.tlaster.precompose.viewmodel.viewModelScope
@@ -82,6 +85,9 @@ class CallsViewModel(
             is CallsEvent.LoadCallDetails -> loadCallDetails(event.token, event.callId)
             is CallsEvent.DeleteCall -> deleteCall(event.token, event.callId)
             is CallsEvent.ResetDeleteCallFlag -> state.value = state.value.copy(callDeleted = false)
+            is CallsEvent.LoadCallForEdit -> loadCallForEdit(event.call)
+
+
         }
     }
 
@@ -198,50 +204,103 @@ class CallsViewModel(
         }
     }
 
+    private fun loadCallForEdit(call: ActivityCallData) {
+        println("AppDebug: editCall id=${call.id} subject=${call.subject} " +
+                "start=${call.startDateTime} priority=${call.priority} status=${call.status} " +
+                "assigned=${call.assignedTo} lead=${call.lead}")
+        // ASSUMPTION: ActivityCallData field names. Adjust to your class.
+        state.value = state.value.copy(
+            editingCallId = call.id,
+            subject = call.subject.orEmpty(),
+            description = call.description.orEmpty(),
+            relatedRecordType = "LEAD",
+            editLeadId = call.lead.id,                       // lead id (UUID string)
+            leadSearchQuery = call.lead.leadName.orEmpty(),      // shown in the lead field
+            selectedLead = null,
+            priorityId = call.priority.priorityId,
+            statusId = call.status.statusId,
+            assignedToUserId = call.assignedTo.userid,
+            startDateTimeMillis = isoToMillis(call.startDateTime),
+            endDateTimeMillis = isoToMillis(call.endDateTime),
+            reminderDateTimeMillis = isoToMillis(call.reminderDateTime),
+            isSavingCall = false, saveCallError = null, callSaved = false,
+        )
+
+        println("AppDebug: after edit load -> subject='${state.value.subject}' " +
+                "start=${state.value.startDateTimeMillis} priorityId=${state.value.priorityId} editingCallId=${state.value.editingCallId}")
+    }
+
     private fun saveCall(token: String) {
         val s = state.value
+        val leadId = s.selectedLead?.id ?: s.editLeadId
+        val priorityId = s.priorityId
+        val statusId = s.statusId
+        val assignedTo = s.assignedToUserId
+        val start = s.startDateTimeMillis
+        val end = s.endDateTimeMillis
 
-        if (s.subject.isBlank() || s.selectedLead == null || s.priorityId == null ||
-            s.statusId == null || s.assignedToUserId == null ||
-            s.startDateTimeMillis == null || s.endDateTimeMillis == null
+        if (s.subject.isBlank() || leadId == null || priorityId == null || statusId == null ||
+            assignedTo == null || start == null || end == null
         ) {
             appendToMessageQueue(UIComponent.ToastSimple("Please fill all required fields"))
             return
         }
+
+        val editId = s.editingCallId
+        if (editId != null) {
+            updateCall(token, UpdateCallRequestDto(
+                id = editId,
+                subject = s.subject,
+                description = s.description.ifBlank { null },
+                priorityId = priorityId,
+                statusId = statusId,
+                startDateTime = millisToIsoString(start),
+                endDateTime = millisToIsoString(end),
+                reminderDateTime = s.reminderDateTimeMillis?.let { millisToIsoString(it) },
+                assignedTo = assignedTo.toString(),
+                leadId = if (s.relatedRecordType == "LEAD") leadId else null,
+            ))
+            return
+        }
+
+        // ----- create path: unchanged except it uses the local vals above -----
         viewModelScope.launch {
             state.value = state.value.copy(isSavingCall = true, saveCallError = null)
-
             val requestDto = CreateCallRequestDto(
                 subject = s.subject,
                 description = s.description.ifBlank { null },
-                priorityId = s.priorityId,
-                statusId = s.statusId,
-                startDateTime = millisToIsoString(s.startDateTimeMillis),
-                endDateTime = millisToIsoString(s.endDateTimeMillis),
+                priorityId = priorityId,
+                statusId = statusId,
+                startDateTime = millisToIsoString(start),
+                endDateTime = millisToIsoString(end),
                 reminderDateTime = s.reminderDateTimeMillis?.let { millisToIsoString(it) },
-                assignedTo = s.assignedToUserId,
-                leadId = if (s.relatedRecordType == "LEAD") s.selectedLead.id else null,
+                assignedTo = assignedTo.toString(),
+                leadId = if (s.relatedRecordType == "LEAD") leadId else null,
                 accountId = null,
                 contactId = null,
             )
             callsRepository.createCall(token, requestDto).onEach { dataState ->
+                // ...keep your existing when(dataState) block exactly as it is
+            }.launchIn(viewModelScope)
+        }
+    }
+
+    private fun updateCall(token: String, request: UpdateCallRequestDto) {
+        viewModelScope.launch {
+            state.value = state.value.copy(isSavingCall = true, saveCallError = null)
+
+            callsRepository.updateCall(token, request).onEach { dataState ->
                 when (dataState) {
                     is DataState.NetworkStatus -> {}
                     is DataState.Response -> {
-                        state.value = state.value.copy(
-                            isSavingCall = false,
-                            saveCallError = "Failed to save call"
-                        )
+                        state.value = state.value.copy(isSavingCall = false, saveCallError = "Failed to update call")
                         appendToMessageQueue(dataState.uiComponent)
                     }
-
                     is DataState.Data -> {
                         if (dataState.data?.status == true) {
                             state.value = state.value.copy(isSavingCall = false, callSaved = true)
                             appendToMessageQueue(
-                                UIComponent.ToastSimple(
-                                    dataState.data.message ?: "Call created successfully"
-                                )
+                                UIComponent.ToastSimple(dataState.data.message ?: "Call updated successfully")
                             )
                         } else {
                             state.value = state.value.copy(
@@ -250,16 +309,12 @@ class CallsViewModel(
                             )
                         }
                     }
-
                     is DataState.Loading -> {
-                        state.value =
-                            state.value.copy(isSavingCall = dataState.progressBarState == ProgressBarState.Loading)
+                        state.value = state.value.copy(isSavingCall = dataState.progressBarState == ProgressBarState.Loading)
                     }
                 }
             }.launchIn(viewModelScope)
-
         }
-
     }
 
     private fun fetchCalls(token: String, userCode: Int, page: Int, append: Boolean) {
@@ -365,4 +420,13 @@ fun millisToDisplayTime(millis: Long?): String {
     val hourStr = hour.toString().padStart(2, '0')
     val minuteStr = dt.minute.toString().padStart(2, '0')
     return "$hourStr:$minuteStr $amPm"
+}
+
+fun isoToMillis(raw: String?): Long? {
+    if (raw.isNullOrBlank()) return null
+    return try {
+        kotlinx.datetime.LocalDateTime.parse(raw.substringBefore("."))
+            .toInstant(kotlinx.datetime.TimeZone.currentSystemDefault())
+            .toEpochMilliseconds()
+    } catch (e: Exception) { null }
 }

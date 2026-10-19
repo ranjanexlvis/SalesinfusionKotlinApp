@@ -29,6 +29,10 @@ class HomeViewModel(
                 getWidgetActivity(event.token)
             }
 
+            is HomeEvent.GetDashboard-> {
+                getDashboard(event.token)
+            }
+
             is HomeEvent.GetQuickActionMenu-> {
                 getQuickActionMenu(event.token)
             }
@@ -42,6 +46,46 @@ class HomeViewModel(
                 removeHeadMessage()
             }
             else -> {}
+        }
+    }
+
+    private fun getDashboard(systemToken: String) {
+        viewModelScope.launch {
+            state.value = state.value.copy(progressBarState = ProgressBarState.Loading)
+
+
+            homeRepository.getDashboard(
+                systemToken = systemToken
+
+            ).onEach { dataState ->
+                when (dataState) {
+
+
+                    is DataState.NetworkStatus -> {}
+                    is DataState.Response -> {
+                        onEvent(HomeEvent.Error(dataState.uiComponent))
+                    }
+                    is DataState.Data -> {
+                        state.value = state.value.copy(
+                            progressBarState = ProgressBarState.Idle,
+                        )
+                        if (dataState.data?.status == true) {
+
+
+                            state.value = state.value.copy(
+                                getDashboard =  dataState.data,
+                            )
+                        } else {
+                            appendToMessageQueue(
+                                UIComponent.ToastSimple(dataState.data?.message.orEmpty())
+                            )
+                        }
+                    }
+                    is DataState.Loading -> {
+                        state.value = state.value.copy(progressBarState = dataState.progressBarState)
+                    }
+                }
+            }.launchIn(viewModelScope)
         }
     }
 

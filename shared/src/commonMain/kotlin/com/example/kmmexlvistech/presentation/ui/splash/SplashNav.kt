@@ -72,10 +72,7 @@ internal fun SplashNav(
                 },
                 onLogout = {
                     scope.launch {
-                        // Clear the persisted session so Splash's token check
-                        // sends the user back to Login next launch, and so
-                        // this logout takes effect immediately too.
-                    //    appDataStoreManager.saveValue(DataStoreKeys.TOKEN, "")
+
                         navigator.navigate(SplashNavigation.Login.route)
                     }
                 },

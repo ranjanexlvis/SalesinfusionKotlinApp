@@ -52,8 +52,13 @@ data class MeetingsState(
     val isDeletingMeeting: Boolean = false,
     val deleteMeetingError: String? = null,
     val meetingDeleted: Boolean = false,
-
+// MeetingsState: add
+    val editingMeetingId: String? = null,
+    val editLeadId: String? = null,
+// and inside the class body:
 
     ) {
     val hasMore: Boolean get() = meetings.size < totalRecords
+    val isEditMode: Boolean get() = editingMeetingId != null
+
 }

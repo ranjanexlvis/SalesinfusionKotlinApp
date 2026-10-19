@@ -154,7 +154,7 @@ import androidx.compose.ui.unit.sp
     onSelected: (Int) -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
-    val selectedLabel = options.find { it.id == selectedId }?.label
+    val selectedLabel = options.firstOrNull { it.id == selectedId }?.label
 
     ExposedDropdownMenuBox(
         expanded = expanded,

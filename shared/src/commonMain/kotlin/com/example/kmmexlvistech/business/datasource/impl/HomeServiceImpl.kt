@@ -4,12 +4,14 @@ package com.example.kmmexlvistech.business.datasource.impl
 
 import com.example.kmmexlvistech.business.constants.BASE_URL_SERVER_ONE
 import com.example.kmmexlvistech.business.datasource.dto.QuickActionDto
+import com.example.kmmexlvistech.business.datasource.models.DashboardResponse
 import com.example.kmmexlvistech.business.datasource.models.GetWidgetActivityResponse
 import com.example.kmmexlvistech.business.datasource.models.QuickActionDTO
 import com.example.kmmexlvistech.business.datasource.models.QuickActionResponse
 import com.example.kmmexlvistech.business.datasource.services.HomeApiServices
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
+import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
@@ -22,6 +24,16 @@ class HomeServiceImpl(
     private val httpClient: HttpClient
 ): HomeApiServices {
 
+
+    override suspend fun getDashboard(token: String): DashboardResponse {
+        return httpClient.get {
+            url {
+                takeFrom(BASE_URL_SERVER_ONE)
+                encodedPath += HomeApiServices.GET_DASHBOARD
+            }
+            header("Authorization", "Bearer $token")
+        }.body()
+    }
 
     override suspend fun getWidgetWithActivities(token: String): GetWidgetActivityResponse {
         return httpClient.post {

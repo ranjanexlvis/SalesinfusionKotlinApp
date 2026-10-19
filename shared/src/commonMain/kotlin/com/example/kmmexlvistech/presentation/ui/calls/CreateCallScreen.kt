@@ -29,8 +29,7 @@ import com.example.kmmexlvistech.presentation.ui.calls.viewmodel.CallsEvent
 import com.example.kmmexlvistech.presentation.ui.calls.viewmodel.CallsState
 import com.example.kmmexlvistech.presentation.ui.common.DateTimePickerRow
 import com.example.kmmexlvistech.presentation.ui.common.DropdownField
-import com.example.kmmexlvistech.presentation.ui.common.FormTextField
-import com.example.kmmexlvistech.presentation.ui.common.RequiredLabel
+
 import com.example.kmmexlvistech.presentation.ui.defaults.DefaultUiScreen
 
 
@@ -43,118 +42,172 @@ fun CreateCallScreen(
     onBackClick: () -> Unit,
     onSaved: () -> Unit,
 ) {
+    val colors = MaterialTheme.colorScheme
+    val isEdit = state.isEditMode
+    val saving = state.isSavingCall
+
     LaunchedEffect(state.callSaved) { if (state.callSaved) onSaved() }
+
+    // Leaving without saving clears the form, so the next "create" never opens with edit data
+    val handleBack: () -> Unit = {
+        events(CallsEvent.ResetCreateCallForm)
+        onBackClick()
+    }
+    val submit: () -> Unit = { if (!saving) events(CallsEvent.SaveCall(token)) }
+
+    println("AppDebug: CreateCallScreen subject='${state.subject}' priorityId=${state.priorityId} editing=${state.editingCallId}")
+
 
     DefaultUiScreen(
         queue = state.errorQueue,
         onRemoveHeadFromQueue = { events(CallsEvent.OnRemoveHeadFromQueue) },
-        progressBarState = if (state.isSavingCall) ProgressBarState.Loading else ProgressBarState.Idle,
+        progressBarState = if (saving) ProgressBarState.Loading else ProgressBarState.Idle,
     ) {
         Column(Modifier.fillMaxSize()) {
             TopAppBar(
-                title = { Text("Create Call", color = Color.White, fontWeight = FontWeight.SemiBold) },
+                title = {
+                    Text(
+                        if (isEdit) "Edit Call" else "Create Call",
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                },
                 navigationIcon = {
-                    IconButton(onClick = onBackClick) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = Color.White)
+                    IconButton(onClick = handleBack) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
                     }
                 },
                 actions = {
-                    TextButton(onClick = { events(CallsEvent.SaveCall(token)) }) {
-                        Text("Save", color = Color.White, fontWeight = FontWeight.SemiBold)
+                    TextButton(onClick = submit, enabled = !saving) {
+                        Text(
+                            if (isEdit) "Update" else "Save",
+                            fontWeight = FontWeight.SemiBold,
+                            color = colors.onPrimary,
+                        )
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF1E2A5E))
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = colors.primary,
+                    titleContentColor = colors.onPrimary,
+                    navigationIconContentColor = colors.onPrimary,
+                    actionIconContentColor = colors.onPrimary,
+                ),
             )
 
             Column(
                 Modifier
-                    .fillMaxSize()
+                    .fillMaxWidth()
                     .weight(1f)
-                    .background(Color(0xFFF5F6FA))
+                    .background(colors.background)
                     .verticalScroll(rememberScrollState())
                     .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+                verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                SectionHeaderColored(Icons.Default.Call, "Call Information", Color(0xFF16A34A))
+                SectionHeader(Icons.Default.Call, "Call Information")
 
-                RequiredLabel("Subject")
-                FormTextField(state.subject, { events(CallsEvent.SubjectChanged(it)) }, "Enter call subject", Icons.Default.Person)
+                CallFieldLabel("Subject", required = true)
+                CallTextField(
+                    value = state.subject,
+                    onValueChange = { events(CallsEvent.SubjectChanged(it)) },
+                    placeholder = "Enter call subject",
+                    icon = Icons.Default.Person,
+                )
 
                 Label("Description")
                 OutlinedTextField(
                     value = state.description,
                     onValueChange = { if (it.length <= 500) events(CallsEvent.DescriptionChanged(it)) },
-                    placeholder = { Text("Enter call description", color = Color.Gray) },
-                    shape = RoundedCornerShape(10.dp),
+                    placeholder = { Text("Enter call description") },
+                    shape = RoundedCornerShape(12.dp),
                     minLines = 3,
-                    colors = OutlinedTextFieldDefaults.colors(unfocusedContainerColor = Color.White, focusedContainerColor = Color.White, unfocusedBorderColor = Color(0xFFE5E7EB)),
-                    modifier = Modifier.fillMaxWidth()
+                    colors = callFieldColors(),
+                    modifier = Modifier.fillMaxWidth(),
                 )
-                Text("${state.description.length}/500", fontSize = 11.sp, color = Color.Gray, modifier = Modifier.align(Alignment.End))
+                Text(
+                    "${state.description.length}/500",
+                    fontSize = 11.sp,
+                    color = colors.onSurfaceVariant,
+                    modifier = Modifier.align(Alignment.End),
+                )
 
                 Spacer(Modifier.height(12.dp))
-                Text("Related Record", fontWeight = FontWeight.Bold, color = Color(0xFF16A34A), fontSize = 15.sp)
-                Spacer(Modifier.height(8.dp))
+                SectionHeader(null, "Related Record")
 
-                StepLabelColored(1, "Select Record Type", "Select the type of record you want to relate.", Color(0xFF16A34A))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 8.dp)) {
-                    RecordTypeChipColored("Lead", Icons.Default.Person, state.relatedRecordType == "LEAD", Color(0xFF16A34A)) {
+                StepLabel(1, "Select Record Type", "Select the type of record you want to relate.")
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.padding(top = 8.dp),
+                ) {
+                    RecordTypeChip("Lead", Icons.Default.Person, state.relatedRecordType == "LEAD") {
                         events(CallsEvent.RelatedRecordTypeChanged("LEAD"))
                     }
-                    RecordTypeChipColored("Account", Icons.Default.Business, state.relatedRecordType == "ACCOUNT", Color(0xFF16A34A)) {
+                    RecordTypeChip("Account", Icons.Default.Business, state.relatedRecordType == "ACCOUNT") {
                         events(CallsEvent.RelatedRecordTypeChanged("ACCOUNT"))
                     }
-                    RecordTypeChipColored("Contact", Icons.Default.Person, state.relatedRecordType == "CONTACT", Color(0xFF16A34A)) {
+                    RecordTypeChip("Contact", Icons.Default.Person, state.relatedRecordType == "CONTACT") {
                         events(CallsEvent.RelatedRecordTypeChanged("CONTACT"))
                     }
                 }
 
                 Spacer(Modifier.height(12.dp))
-                StepLabelColored(2, "Select Lead", "Search and select a lead", Color(0xFF16A34A))
+                StepLabel(2, "Select Lead", "Search and select a lead")
+                Spacer(Modifier.height(6.dp))
                 OutlinedTextField(
                     value = state.leadSearchQuery,
                     onValueChange = { events(CallsEvent.LeadSearchQueryChanged(it, token)) },
-                    placeholder = { Text("Search lead by name, email or phone...", color = Color.Gray, fontSize = 13.sp) },
-                    trailingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = Color.Gray) },
-                    shape = RoundedCornerShape(10.dp),
+                    placeholder = { Text("Search lead by name, email or phone...", fontSize = 13.sp) },
+                    trailingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                    shape = RoundedCornerShape(12.dp),
                     singleLine = true,
-                    colors = OutlinedTextFieldDefaults.colors(unfocusedContainerColor = Color.White, focusedContainerColor = Color.White, unfocusedBorderColor = Color(0xFFE5E7EB)),
-                    modifier = Modifier.fillMaxWidth()
+                    colors = callFieldColors(),
+                    modifier = Modifier.fillMaxWidth(),
                 )
                 if (state.leadSearchResults.isNotEmpty()) {
-                    Column(Modifier.fillMaxWidth().background(Color.White, RoundedCornerShape(10.dp)).border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(10.dp))) {
-                        state.leadSearchResults.forEach { lead ->
-                            Text(lead.firstName, modifier = Modifier.fillMaxWidth().clickable { events(CallsEvent.LeadSelected(lead)) }.padding(12.dp))
-                            Divider()
+                    val shape = RoundedCornerShape(12.dp)
+                    Column(
+                        Modifier
+                            .fillMaxWidth()
+                            .background(colors.surface, shape)
+                            .border(1.dp, colors.outlineVariant, shape),
+                    ) {
+                        state.leadSearchResults.forEachIndexed { i, lead ->
+                            if (i > 0) HorizontalDivider(color = colors.outlineVariant.copy(alpha = 0.6f))
+                            Text(
+                                "${lead.firstName} ${lead.lastName}".trim(),
+                                color = colors.onSurface,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { events(CallsEvent.LeadSelected(lead)) }
+                                    .padding(12.dp),
+                            )
                         }
                     }
                 }
 
                 Spacer(Modifier.height(12.dp))
-                Text("Call Details", fontWeight = FontWeight.Bold, color = Color(0xFF16A34A), fontSize = 15.sp)
+                SectionHeader(null, "Call Details")
 
-                RequiredLabel("Priority")
+                CallFieldLabel("Priority", required = true)
                 DropdownField("Select priority", Icons.Default.Assignment, state.priorityOptions, state.priorityId) {
                     events(CallsEvent.CallPriorityChanged(it))
                 }
 
-                RequiredLabel("Status")
+                CallFieldLabel("Status", required = true)
                 DropdownField("Select status", Icons.Default.CheckCircleOutline, state.statusOptions, state.statusId) {
                     events(CallsEvent.CallStatusChanged(it))
                 }
 
-                RequiredLabel("Assigned To")
+                CallFieldLabel("Assigned To", required = true)
                 DropdownField("Select user", Icons.Default.Person, state.userOptions, state.assignedToUserId) {
                     events(CallsEvent.CallAssignedToChanged(it))
                 }
 
                 Spacer(Modifier.height(12.dp))
-                Text("Schedule", fontWeight = FontWeight.Bold, color = Color(0xFF16A34A), fontSize = 15.sp)
+                SectionHeader(null, "Schedule")
 
-                RequiredLabel("Start Date & Time")
+                CallFieldLabel("Start Date & Time", required = true)
                 DateTimePickerRow(state.startDateTimeMillis, { events(CallsEvent.StartDateTimeChanged(it)) })
 
-                RequiredLabel("End Date & Time")
+                CallFieldLabel("End Date & Time", required = true)
                 DateTimePickerRow(state.endDateTimeMillis, { events(CallsEvent.EndDateTimeChanged(it)) })
 
                 Label("Reminder")
@@ -162,15 +215,31 @@ fun CreateCallScreen(
 
                 Spacer(Modifier.height(24.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
-                    OutlinedButton(onClick = onBackClick, modifier = Modifier.weight(1f).height(50.dp), shape = RoundedCornerShape(10.dp)) {
-                        Text("Cancel", color = Color(0xFF1E2A5E))
-                    }
-                    Button(
-                        onClick = { events(CallsEvent.SaveCall(token)) },
+                    OutlinedButton(
+                        onClick = handleBack,
                         modifier = Modifier.weight(1f).height(50.dp),
-                        shape = RoundedCornerShape(10.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF16A34A))
-                    ) { Text("Save Call", color = Color.White, fontWeight = FontWeight.SemiBold) }
+                        shape = RoundedCornerShape(12.dp),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, colors.outline),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = colors.primary),
+                    ) { Text("Cancel") }
+
+                    Button(
+                        onClick = submit,
+                        enabled = !saving,
+                        modifier = Modifier.weight(1f).height(50.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = colors.primary,
+                            contentColor = colors.onPrimary,
+                            disabledContainerColor = colors.onSurface.copy(alpha = 0.12f),
+                            disabledContentColor = colors.onSurface.copy(alpha = 0.38f),
+                        ),
+                    ) {
+                        Text(
+                            if (isEdit) "Update Call" else "Save Call",
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    }
                 }
                 Spacer(Modifier.height(16.dp))
             }
@@ -178,49 +247,119 @@ fun CreateCallScreen(
     }
 }
 
+// ---------------- Themed building blocks ----------------
+
 @Composable
-private fun SectionHeaderColored(icon: ImageVector, title: String, color: Color) {
-    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 8.dp)) {
-        Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(18.dp))
-        Spacer(Modifier.width(6.dp))
-        Text(title, fontWeight = FontWeight.Bold, color = color, fontSize = 15.sp)
-    }
+private fun callFieldColors() = MaterialTheme.colorScheme.let { c ->
+    OutlinedTextFieldDefaults.colors(
+        focusedTextColor = c.onSurface,
+        unfocusedTextColor = c.onSurface,
+        focusedContainerColor = c.surface,
+        unfocusedContainerColor = c.surface,
+        focusedBorderColor = c.primary,
+        unfocusedBorderColor = c.outlineVariant,
+        focusedPlaceholderColor = c.onSurfaceVariant,
+        unfocusedPlaceholderColor = c.onSurfaceVariant,
+        focusedLeadingIconColor = c.primary,
+        unfocusedLeadingIconColor = c.onSurfaceVariant,
+        focusedTrailingIconColor = c.onSurfaceVariant,
+        unfocusedTrailingIconColor = c.onSurfaceVariant,
+        cursorColor = c.primary,
+    )
 }
 
 @Composable
-private fun StepLabelColored(step: Int, title: String, subtitle: String?, color: Color) {
-    Row(verticalAlignment = Alignment.Top) {
-        Box(Modifier.size(20.dp).background(color, CircleShape), contentAlignment = Alignment.Center) {
-            Text(step.toString(), color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-        }
-        Spacer(Modifier.width(8.dp))
-        Column {
-            Row {
-                Text(title, fontWeight = FontWeight.Medium, fontSize = 13.sp)
-                Text(" *", color = Color.Red, fontSize = 13.sp)
-            }
-            subtitle?.let { Text(it, color = Color.Gray, fontSize = 11.sp) }
-        }
-    }
+private fun CallTextField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    placeholder: String,
+    icon: ImageVector,
+) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        placeholder = { Text(placeholder) },
+        leadingIcon = { Icon(icon, contentDescription = null) },
+        singleLine = true,
+        shape = RoundedCornerShape(12.dp),
+        colors = callFieldColors(),
+        modifier = Modifier.fillMaxWidth(),
+    )
 }
 
 @Composable
-private fun RecordTypeChipColored(label: String, icon: ImageVector, selected: Boolean, color: Color, onClick: () -> Unit) {
-    Row(
-        Modifier
-            .background(if (selected) color.copy(alpha = 0.1f) else Color.White, RoundedCornerShape(10.dp))
-            .border(1.dp, if (selected) color else Color(0xFFE5E7EB), RoundedCornerShape(10.dp))
-            .clickable { onClick() }
-            .padding(horizontal = 14.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(icon, contentDescription = null, tint = if (selected) color else Color.Gray, modifier = Modifier.size(16.dp))
-        Spacer(Modifier.width(6.dp))
-        Text(label, color = if (selected) color else Color.DarkGray, fontSize = 13.sp)
+private fun CallFieldLabel(text: String, required: Boolean) {
+    val colors = MaterialTheme.colorScheme
+    Row(Modifier.padding(top = 8.dp, bottom = 4.dp)) {
+        Text(text, fontWeight = FontWeight.Medium, fontSize = 13.sp, color = colors.onSurface)
+        if (required) Text(" *", color = colors.error, fontSize = 13.sp)
     }
 }
 
 @Composable
 fun Label(text: String) {
-    Text(text, fontWeight = FontWeight.Medium, fontSize = 13.sp, modifier = Modifier.padding(top = 8.dp, bottom = 4.dp))
+    Text(
+        text,
+        fontWeight = FontWeight.Medium,
+        fontSize = 13.sp,
+        color = MaterialTheme.colorScheme.onSurface,
+        modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
+    )
+}
+
+@Composable
+private fun SectionHeader(icon: ImageVector?, title: String) {
+    val colors = MaterialTheme.colorScheme
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 8.dp)) {
+        if (icon != null) {
+            Icon(icon, contentDescription = null, tint = colors.primary, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(6.dp))
+        }
+        Text(title, fontWeight = FontWeight.Bold, color = colors.primary, fontSize = 15.sp)
+    }
+}
+
+@Composable
+private fun StepLabel(step: Int, title: String, subtitle: String?) {
+    val colors = MaterialTheme.colorScheme
+    Row(verticalAlignment = Alignment.Top) {
+        Box(Modifier.size(20.dp).background(colors.primary, CircleShape), contentAlignment = Alignment.Center) {
+            Text(step.toString(), color = colors.onPrimary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+        }
+        Spacer(Modifier.width(8.dp))
+        Column {
+            Row {
+                Text(title, fontWeight = FontWeight.Medium, fontSize = 13.sp, color = colors.onSurface)
+                Text(" *", color = colors.error, fontSize = 13.sp)
+            }
+            subtitle?.let { Text(it, color = colors.onSurfaceVariant, fontSize = 11.sp) }
+        }
+    }
+}
+
+@Composable
+private fun RecordTypeChip(label: String, icon: ImageVector, selected: Boolean, onClick: () -> Unit) {
+    val colors = MaterialTheme.colorScheme
+    val shape = RoundedCornerShape(12.dp)
+    Row(
+        Modifier
+            .background(if (selected) colors.primaryContainer.copy(alpha = 0.6f) else colors.surface, shape)
+            .border(1.dp, if (selected) colors.primary else colors.outlineVariant, shape)
+            .clickable { onClick() }
+            .padding(horizontal = 14.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            icon, contentDescription = null,
+            tint = if (selected) colors.primary else colors.onSurfaceVariant,
+            modifier = Modifier.size(16.dp),
+        )
+        Spacer(Modifier.width(6.dp))
+        Text(
+            label,
+            color = if (selected) colors.primary else colors.onSurfaceVariant,
+            fontSize = 13.sp,
+            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+        )
+    }
 }

@@ -13,8 +13,11 @@ import com.example.kmmexlvistech.business.datasource.dto.CreateMeetingRequestDto
 import com.example.kmmexlvistech.business.datasource.dto.MeetingsFilterDto
 import com.example.kmmexlvistech.business.datasource.dto.MeetingsRequestDto
 import com.example.kmmexlvistech.business.datasource.dto.MeetingsSortDto
+import com.example.kmmexlvistech.business.datasource.dto.UpdateMeetingRequestDto
+import com.example.kmmexlvistech.business.datasource.models.ActivityMeetingData
 import com.example.kmmexlvistech.business.repos.CallsRepository
 import com.example.kmmexlvistech.business.repos.MeetingsRepository
+import com.example.kmmexlvistech.presentation.ui.calls.viewmodel.isoToMillis
 import com.example.kmmexlvistech.presentation.ui.calls.viewmodel.millisToIsoString
 import com.example.kmmexlvistech.presentation.ui.common.DropdownOption
 import kotlinx.coroutines.flow.launchIn
@@ -87,6 +90,128 @@ class MeetingsViewModel(private val meetingsRepository: MeetingsRepository) : Vi
             )
             is MeetingsEvent.DeleteMeeting -> deleteMeeting(event.token, event.meetingId)
             is MeetingsEvent.ResetDeleteMeetingFlag -> state.value = state.value.copy(meetingDeleted = false)
+
+            is MeetingsEvent.LoadMeetingForEdit -> loadMeetingForEdit(event.meeting)
+
+        }
+    }
+
+
+    private fun loadMeetingForEdit(m: ActivityMeetingData) {
+        // ASSUMPTION: ActivityMeetingData mirrors the Call data you logged
+        // (priority.priorityId, status.statusId, assignedTo.userid, lead.id / lead.leadName).
+        // Adjust names to your class if the compiler complains.
+        state.value = state.value.copy(
+            editingMeetingId = m.id,
+            subject = m.subject.orEmpty(),
+            description = m.description.orEmpty(),
+            relatedRecordType = "LEAD",
+            editLeadId = m.lead?.id,
+            leadSearchQuery = m.lead?.leadName.orEmpty(),
+            selectedLead = null,
+            meetingType = m.meetingType?.uppercase() ?: "OFFLINE",
+            location = m.meetingLocation.orEmpty(),
+            meetingLink = m.meetingLink.orEmpty(),
+            priorityId = m.priority?.priorityId,
+            statusId = m.status?.statusId,
+            assignedToUserId = m.assignedTo?.userid,
+            startDateTimeMillis = isoToMillis(m.startDateTime),
+            endDateTimeMillis = isoToMillis(m.endDateTime),
+            reminderDateTimeMillis = isoToMillis(m.reminderDateTime),
+            isSavingMeeting = false, saveMeetingError = null, meetingSaved = false,
+        )
+    }
+
+    fun saveMeeting(token: String) {
+        val s = state.value
+        val leadId = s.selectedLead?.id ?: s.editLeadId
+        val priorityId = s.priorityId
+        val statusId = s.statusId
+        val assignedTo = s.assignedToUserId
+        val start = s.startDateTimeMillis
+        val end = s.endDateTimeMillis
+
+        if (s.subject.isBlank() || leadId == null || priorityId == null || statusId == null ||
+            assignedTo == null || start == null || end == null ||
+            (s.meetingType == "OFFLINE" && s.location.isBlank())
+        ) {
+            appendToMessageQueue(UIComponent.ToastSimple("Please fill all required fields"))
+            return
+        }
+
+        val editId = s.editingMeetingId
+        if (editId != null) {
+            updateMeeting(token, UpdateMeetingRequestDto(
+                id = editId,
+                subject = s.subject,
+                description = s.description.ifBlank { null },
+                priorityId = priorityId,
+                statusId = statusId,
+                startDateTime = millisToIsoString(start),
+                endDateTime = millisToIsoString(end),
+                reminderDateTime = s.reminderDateTimeMillis?.let { millisToIsoString(it) },
+                // send only the field that matches the type, so a stale value isn't saved
+                meetingLocation = if (s.meetingType == "OFFLINE") s.location.ifBlank { null } else null,
+                meetingType = s.meetingType,
+                meetingLink = if (s.meetingType == "ONLINE") s.meetingLink.ifBlank { null } else null,
+                assignedTo = assignedTo,
+                leadId = if (s.relatedRecordType == "LEAD") leadId else null,
+            ))
+            return
+        }
+
+        // ----- create path: same as before, using the local vals -----
+        viewModelScope.launch {
+            state.value = state.value.copy(isSavingMeeting = true, saveMeetingError = null)
+            val requestDto = CreateMeetingRequestDto(
+                subject = s.subject,
+                description = s.description.ifBlank { null },
+                priorityId = priorityId,
+                statusId = statusId,
+                startDateTime = millisToIsoString(start),
+                endDateTime = millisToIsoString(end),
+                reminderDateTime = s.reminderDateTimeMillis?.let { millisToIsoString(it) },
+                meetingLocation = s.location.ifBlank { null },
+                meetingType = s.meetingType,
+                meetingLink = s.meetingLink.ifBlank { null },
+                assignedTo = assignedTo,
+                leadId = if (s.relatedRecordType == "LEAD") leadId else null,
+                accountId = null,
+                contactId = null,
+            )
+            meetingsRepository.createMeeting(token, requestDto).onEach { dataState ->
+                // ...keep your existing when(dataState) block exactly as it is
+            }.launchIn(viewModelScope)
+        }
+    }
+
+    private fun updateMeeting(token: String, request: UpdateMeetingRequestDto) {
+        viewModelScope.launch {
+            state.value = state.value.copy(isSavingMeeting = true, saveMeetingError = null)
+
+            meetingsRepository.updateMeeting(token, request).onEach { dataState ->
+                when (dataState) {
+                    is DataState.NetworkStatus -> {}
+                    is DataState.Response -> {
+                        state.value = state.value.copy(isSavingMeeting = false, saveMeetingError = "Failed to update meeting")
+                        appendToMessageQueue(dataState.uiComponent)
+                    }
+                    is DataState.Data -> {
+                        if (dataState.data?.status == true) {
+                            state.value = state.value.copy(isSavingMeeting = false, meetingSaved = true)
+                            appendToMessageQueue(UIComponent.ToastSimple(dataState.data.message ?: "Meeting updated successfully"))
+                        } else {
+                            state.value = state.value.copy(
+                                isSavingMeeting = false,
+                                saveMeetingError = dataState.data?.message ?: "Something went wrong"
+                            )
+                        }
+                    }
+                    is DataState.Loading -> {
+                        state.value = state.value.copy(isSavingMeeting = dataState.progressBarState == ProgressBarState.Loading)
+                    }
+                }
+            }.launchIn(viewModelScope)
         }
     }
 
@@ -160,74 +285,7 @@ class MeetingsViewModel(private val meetingsRepository: MeetingsRepository) : Vi
         }
     }
 
-    fun saveMeeting(token: String) {
-        val s = state.value
 
-        if (s.subject.isBlank() || s.selectedLead == null || s.priorityId == null ||
-            s.statusId == null || s.assignedToUserId == null ||
-            s.startDateTimeMillis == null || s.endDateTimeMillis == null ||
-            (s.meetingType == "OFFLINE" && s.location.isBlank())
-        ) {
-            appendToMessageQueue(UIComponent.ToastSimple("Please fill all required fields"))
-            return
-        }
-        viewModelScope.launch {
-            state.value = state.value.copy(isSavingMeeting = true, saveMeetingError = null)
-
-            val requestDto = CreateMeetingRequestDto(
-                subject = s.subject,
-                description = s.description.ifBlank { null },
-                priorityId = s.priorityId,
-                statusId = s.statusId,
-                startDateTime = millisToIsoString(s.startDateTimeMillis),
-                endDateTime = millisToIsoString(s.endDateTimeMillis),
-                reminderDateTime = s.reminderDateTimeMillis?.let { millisToIsoString(it) },
-                meetingLocation = s.location.ifBlank { null },
-                meetingType = s.meetingType,
-                meetingLink = s.meetingLink.ifBlank { null },
-                assignedTo = s.assignedToUserId,
-                leadId = if (s.relatedRecordType == "LEAD") s.selectedLead.id else null,
-                accountId = null,
-                contactId = null,
-            )
-
-            meetingsRepository.createMeeting(token, requestDto).onEach { dataState ->
-                when (dataState) {
-                    is DataState.NetworkStatus -> {}
-                    is DataState.Response -> {
-                        state.value = state.value.copy(
-                            isSavingMeeting = false,
-                            saveMeetingError = "Failed to save meeting"
-                        )
-                        appendToMessageQueue(dataState.uiComponent)
-                    }
-
-                    is DataState.Data -> {
-                        if (dataState.data?.status == true) {
-                            state.value =
-                                state.value.copy(isSavingMeeting = false, meetingSaved = true)
-                            appendToMessageQueue(
-                                UIComponent.ToastSimple(
-                                    dataState.data.message ?: "Meeting created successfully"
-                                )
-                            )
-                        } else {
-                            state.value = state.value.copy(
-                                isSavingMeeting = false,
-                                saveMeetingError = dataState.data?.message ?: "Something went wrong"
-                            )
-                        }
-                    }
-
-                    is DataState.Loading -> {
-                        state.value =
-                            state.value.copy(isSavingMeeting = dataState.progressBarState == ProgressBarState.Loading)
-                    }
-
-                }
-            }.launchIn(viewModelScope)
-        }
-    }
 
     private fun loadMeetingDetails(token: String, meetingId: String) {
         viewModelScope.launch {

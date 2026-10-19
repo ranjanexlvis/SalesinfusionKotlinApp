@@ -8,6 +8,8 @@ import com.example.kmmexlvistech.business.datasource.dto.LeadsListResponse
 import com.example.kmmexlvistech.business.datasource.dto.LeadsRequestDto
 import com.example.kmmexlvistech.business.datasource.dto.MeetingsListResponse
 import com.example.kmmexlvistech.business.datasource.dto.MeetingsRequestDto
+import com.example.kmmexlvistech.business.datasource.dto.UpdateMeetingRequestDto
+import com.example.kmmexlvistech.business.datasource.dto.UpdateMeetingResponse
 import com.example.kmmexlvistech.business.datasource.models.MeetingDetailResponse
 import com.example.kmmexlvistech.business.datasource.services.MeetingsApiServices
 import io.ktor.client.HttpClient
@@ -16,6 +18,7 @@ import io.ktor.client.request.delete
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.post
+import io.ktor.client.request.put
 import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
@@ -23,6 +26,15 @@ import io.ktor.http.encodedPath
 import io.ktor.http.takeFrom
 
 class  MeetingsServiceImpl(private val httpClient: HttpClient) : MeetingsApiServices {
+
+    override suspend fun updateMeeting(token: String, requestDto: UpdateMeetingRequestDto): UpdateMeetingResponse {
+        return httpClient.put {
+            url { takeFrom(BASE_URL_SERVER_ONE); encodedPath += MeetingsApiServices.UPDATE_MEETING }
+            header("Authorization", "Bearer $token")
+            contentType(ContentType.Application.Json)
+            setBody(requestDto)
+        }.body()
+    }
 
     override suspend fun getMeetingsList(token: String, meetingsRequestDto: MeetingsRequestDto): MeetingsListResponse {
         return httpClient.post {

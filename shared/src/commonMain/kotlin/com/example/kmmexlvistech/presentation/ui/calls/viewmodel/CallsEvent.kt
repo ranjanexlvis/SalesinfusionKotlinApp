@@ -2,6 +2,7 @@ package com.example.kmmexlvistech.presentation.ui.calls.viewmodel
 
 import com.example.kmmexlvistech.business.core.UIComponent
 import com.example.kmmexlvistech.business.datasource.dto.LeadDto
+import com.example.kmmexlvistech.business.datasource.models.ActivityCallData
 
 sealed class CallsEvent {
     data class GetCalls(val token: String, val userCode: Int) : CallsEvent()
@@ -30,4 +31,7 @@ sealed class CallsEvent {
     data class LoadCallDetails(val token: String, val callId: String) : CallsEvent()
     data class DeleteCall(val token: String, val callId: String) : CallsEvent()
     object ResetDeleteCallFlag : CallsEvent()
+
+    // CallsEvent: add
+    data class LoadCallForEdit(val call: ActivityCallData) : CallsEvent()
 }

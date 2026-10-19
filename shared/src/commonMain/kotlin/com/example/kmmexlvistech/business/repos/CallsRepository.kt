@@ -23,6 +23,8 @@ import com.example.kmmexlvistech.business.datasource.models.CallDetailResponse
 import com.example.kmmexlvistech.business.datasource.models.DeleteCallResponse
 import com.example.kmmexlvistech.business.datasource.models.GetWidgetActivityResponse
 import com.example.kmmexlvistech.business.datasource.models.QuickActionResponse
+import com.example.kmmexlvistech.business.datasource.models.UpdateCallRequestDto
+import com.example.kmmexlvistech.business.datasource.models.UpdateCallResponse
 import com.example.kmmexlvistech.business.datasource.models.UserListRequestDto
 import com.example.kmmexlvistech.business.datasource.models.UserListResponse
 import com.example.kmmexlvistech.business.datasource.services.CallsApiServices
@@ -38,6 +40,7 @@ import kotlinx.coroutines.flow.flow
             private val service: CallsApiServices,
             private val centralCrmApiServices: CentralCrmApiServices,
         ) {
+            @Suppress("SuspiciousIndentation")
             fun getCalls(systemToken:String, callsRequestDto: CallsRequestDto
             ): Flow<DataState<CallsListResponse>> = flow {
                 try {
@@ -54,6 +57,13 @@ import kotlinx.coroutines.flow.flow
              fun createCall(systemToken: String, requestDto: CreateCallRequestDto): Flow<DataState<CreateCallResponse>> = flow {
                 emit(DataState.Loading(ProgressBarState.Loading))
                 try { emit(DataState.Data(service.createCall(systemToken, requestDto))) }
+                catch (e: Exception) { emit(DataState.Response(UIComponent.ToastSimple(e.message ?: "Something went wrong"))) }
+                emit(DataState.Loading(ProgressBarState.Idle))
+            }
+
+            fun updateCall(token: String, request: UpdateCallRequestDto): Flow<DataState<UpdateCallResponse>> = flow {
+                emit(DataState.Loading(ProgressBarState.Loading))
+                try { emit(DataState.Data(service.updateCall(token, request))) }
                 catch (e: Exception) { emit(DataState.Response(UIComponent.ToastSimple(e.message ?: "Something went wrong"))) }
                 emit(DataState.Loading(ProgressBarState.Idle))
             }

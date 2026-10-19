@@ -49,6 +49,10 @@ data class CallsState(
     val isDeletingCall: Boolean = false,
     val deleteCallError: String? = null,
     val callDeleted: Boolean = false,
+
+    val editingCallId: String? = null,
+    val editLeadId: String? = null,
 ) {
     val hasMore: Boolean get() = calls.size < totalRecords
+    val isEditMode: Boolean get() = editingCallId != null
 }

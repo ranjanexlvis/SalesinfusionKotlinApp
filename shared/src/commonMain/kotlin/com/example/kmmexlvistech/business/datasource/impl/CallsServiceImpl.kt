@@ -9,6 +9,8 @@ import com.example.kmmexlvistech.business.datasource.dto.LeadsListResponse
 import com.example.kmmexlvistech.business.datasource.dto.LeadsRequestDto
 import com.example.kmmexlvistech.business.datasource.models.CallDetailResponse
 import com.example.kmmexlvistech.business.datasource.models.DeleteCallResponse
+import com.example.kmmexlvistech.business.datasource.models.UpdateCallRequestDto
+import com.example.kmmexlvistech.business.datasource.models.UpdateCallResponse
 import com.example.kmmexlvistech.business.datasource.services.CallsApiServices
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -16,6 +18,7 @@ import io.ktor.client.request.delete
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.post
+import io.ktor.client.request.put
 import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
@@ -33,6 +36,18 @@ class CallsServiceImpl(private val httpClient: HttpClient): CallsApiServices {
             header("Authorization","Bearer $token")
             contentType(ContentType.Application.Json)
             setBody(callsRequestDto)
+        }.body()
+    }
+
+    override suspend fun updateCall(token: String, request: UpdateCallRequestDto): UpdateCallResponse {
+        return httpClient.put {
+            url {
+                takeFrom(BASE_URL_SERVER_ONE)
+                encodedPath += CallsApiServices.UPDATE_CALL
+            }
+            header("Authorization", "Bearer $token")
+            contentType(ContentType.Application.Json)
+            setBody(request)
         }.body()
     }
 

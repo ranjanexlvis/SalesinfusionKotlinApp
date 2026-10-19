@@ -7,6 +7,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -19,6 +20,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -32,17 +34,23 @@ import com.example.kmmexlvistech.presentation.ui.dashboard.viewModel.HomeEvent
 import com.example.kmmexlvistech.presentation.ui.dashboard.viewModel.HomeState
 import com.example.kmmexlvistech.presentation.ui.defaults.DefaultUiScreen
 
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.text.style.TextOverflow
+import com.example.kmmexlvistech.business.datasource.models.DashboardDataDTO
+
 @Composable
 fun HomeScreen(
     homeState: HomeState,
     events: (HomeEvent) -> Unit,
     systemToken: String,
     userName: String = "User",
-    onWidgetClick: (WidgetDTO) -> Unit = {},
+    onWidgetClick: (WidgetDTO) -> Unit = {},      // kept so the existing call site compiles
+    onCodeClick: (String) -> Unit = {},           // "LEADS", "TASKS", "CALLS", "MEETINGS"
     onQuickActionClick: (QuickActionDTO) -> Unit = {},
 ) {
     LaunchedEffect(systemToken) {
         if (systemToken.isNotBlank()) {
+            events(HomeEvent.GetDashboard(systemToken))
             events(HomeEvent.GetWidgetWithActivities(systemToken))
             events(HomeEvent.GetQuickActionMenu(systemToken))
         }
@@ -54,45 +62,105 @@ fun HomeScreen(
         progressBarState = homeState.progressBarState,
     ) {
         val colors = MaterialTheme.colorScheme
-        val groups = homeState.getWidgetActivityResponse.data
-            .filter { it.isVisible }
-            .sortedBy { it.displayOrder }
 
-        Box(modifier = Modifier.fillMaxSize().background(DashboardBackground)) {
+        // NOTE: adjust this line if your state field has a different name
+        val dashboard: DashboardDataDTO? = homeState.getDashboard.data
+        val header = dashboard?.header
+        val myWork = dashboard?.myWork
+        val focus = dashboard?.todaysFocus
+
+        val name = header?.displayName ?: header?.firstName ?: userName
+        val greeting = header?.greeting?.takeIf { it.isNotBlank() } ?: "Welcome back"
+        val subTitle = header?.subTitle?.takeIf { it.isNotBlank() }
+            ?: "Here's what's happening with your work today."
+
+        Box(modifier = Modifier.fillMaxSize().background(colors.background)) {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(16.dp, 16.dp, 16.dp, 96.dp),
                 verticalArrangement = Arrangement.spacedBy(24.dp),
             ) {
+                // ---------- Greeting ----------
                 item {
                     Column {
                         Text(
-                            "Good morning, $userName \uD83D\uDC4B",
-                            fontSize = 21.sp,
+                            "$greeting, $name \uD83D\uDC4B",
+                            fontSize = 22.sp,
                             fontWeight = FontWeight.Bold,
                             color = colors.onBackground,
                         )
                         Text(
-                            "Here's what's happening with your work today.",
+                            subTitle,
                             fontSize = 13.sp,
-                            color = colors.onBackground.copy(alpha = 0.6f),
+                            color = colors.onSurfaceVariant,
                             modifier = Modifier.padding(top = 2.dp),
                         )
                     }
                 }
 
-                if (groups.isEmpty() && homeState.progressBarState == ProgressBarState.Idle) {
-                    item { EmptyWidgetsState() }
+                // ---------- My Work ----------
+                item {
+                    SectionTitle("My Work")
+                    Spacer(Modifier.height(12.dp))
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            StatCard(
+                                modifier = Modifier.weight(1f).fillMaxHeight(),
+                                label = "Leads", caption = "Total Leads",
+                                count = myWork?.leads, icon = Icons.Default.Groups,
+                                accent = Accent.LEADS,
+                                onClick = { onCodeClick("LEADS") },
+                            )
+                            StatCard(
+                                modifier = Modifier.weight(1f).fillMaxHeight(),
+                                label = "Tasks", caption = "Pending Tasks",
+                                count = myWork?.tasks, icon = Icons.Default.CheckCircle,
+                                accent = Accent.TASKS,
+                                onClick = { onCodeClick("TASKS") },
+                            )
+                        }
+                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            StatCard(
+                                modifier = Modifier.weight(1f).fillMaxHeight(),
+                                label = "Calls", caption = "Today's Calls",
+                                count = myWork?.calls, icon = Icons.Default.Call,
+                                accent = Accent.CALLS,
+                                onClick = { onCodeClick("CALLS") },
+                            )
+                            StatCard(
+                                modifier = Modifier.weight(1f).fillMaxHeight(),
+                                label = "Meetings", caption = "Today's Meetings",
+                                count = myWork?.meetings, icon = Icons.Default.CalendarMonth,
+                                accent = Accent.MEETINGS,
+                                onClick = { onCodeClick("MEETINGS") },
+                            )
+                        }
+                    }
                 }
 
-                groups.forEach { group ->
-                    item(key = group.widgetId) {
-                        WidgetGroupSection(group = group, onWidgetClick = onWidgetClick)
+                // ---------- Today's Focus ----------
+                item {
+                    SectionTitle("Today's Focus")
+                    Spacer(Modifier.height(12.dp))
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(colors.surface)
+                            .border(1.dp, colors.outlineVariant.copy(alpha = 0.6f), RoundedCornerShape(16.dp)),
+                    ) {
+                        FocusRow("Due Tasks", focus?.dueTasks, Icons.Default.TaskAlt, Accent.DUE) { onCodeClick("TASKS") }
+                        HorizontalDivider(color = colors.outlineVariant.copy(alpha = 0.6f))
+                        FocusRow("Pending Calls", focus?.pendingCalls, Icons.Default.PhoneForwarded, Accent.FOLLOW) { onCodeClick("PENDING_CALLS") }
+                        HorizontalDivider(color = colors.outlineVariant.copy(alpha = 0.6f))
+                        FocusRow("Meetings Today", focus?.meetingsToday, Icons.Default.Event, Accent.CALLS) { onCodeClick("UPCOMING_MEETINGS") }
+                        HorizontalDivider(color = colors.outlineVariant.copy(alpha = 0.6f))
+                        FocusRow("Follow Ups", focus?.followUps, Icons.Default.Assignment, Accent.TASKS) { onCodeClick("TASKS") }
                     }
                 }
             }
 
-            // Scrim behind the action list — tapping it closes the sheet
+            // ---------- Quick action scrim ----------
             AnimatedVisibility(
                 visible = homeState.isSheetOpen,
                 enter = fadeIn(tween(200)),
@@ -102,15 +170,14 @@ fun HomeScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.5f))
+                        .background(colors.scrim.copy(alpha = 0.5f))
                         .clickable { events(HomeEvent.ToggleQuickActionSheet) },
                 )
             }
 
+            // ---------- FAB + quick actions ----------
             Column(
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(end = 16.dp, bottom = 16.dp),
+                modifier = Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = 16.dp),
                 horizontalAlignment = Alignment.End,
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
@@ -119,22 +186,15 @@ fun HomeScreen(
                     enter = fadeIn(tween(220)) + slideInVertically(tween(220)) { it / 4 },
                     exit = fadeOut(tween(150)) + slideOutVertically(tween(150)) { it / 4 },
                 ) {
-                    Column(
-                        horizontalAlignment = Alignment.End,
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
+                    Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         homeState.getQuickActionResponse.data.forEach { action ->
-                            QuickActionRow(
-                                action = action,
-                                onClick = {
-                                    events(HomeEvent.ToggleQuickActionSheet)
-                                    onQuickActionClick(action)
-                                },
-                            )
+                            QuickActionRow(action) {
+                                events(HomeEvent.ToggleQuickActionSheet)
+                                onQuickActionClick(action)
+                            }
                         }
                     }
                 }
-
                 FloatingActionButton(
                     onClick = { events(HomeEvent.ToggleQuickActionSheet) },
                     containerColor = colors.primary,
@@ -151,21 +211,126 @@ fun HomeScreen(
     }
 }
 
-@Composable
-private fun QuickActionRow(action: QuickActionDTO, onClick: () -> Unit) {
-    val accent = parseHexColor(action.color)
+// ---------------- Building blocks ----------------
 
+@Composable
+private fun SectionTitle(text: String) {
+    Text(text, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onBackground)
+}
+
+@Composable
+private fun StatCard(
+    label: String,
+    caption: String,
+    count: Int?,
+    icon: ImageVector,
+    accent: Accent,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
+    val colors = MaterialTheme.colorScheme
+    val tone = accentTone(accent)
+    Row(
+        modifier = modifier
+            .clip(RoundedCornerShape(16.dp))
+            .background(colors.surface)
+            .border(1.dp, colors.outlineVariant.copy(alpha = 0.6f), RoundedCornerShape(16.dp))
+            .clickable(onClick = onClick)
+            .padding(12.dp),
+        verticalAlignment = Alignment.Top,
+    ) {
+        Box(
+            modifier = Modifier.size(40.dp).background(tone.bg, RoundedCornerShape(12.dp)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(icon, contentDescription = label, tint = tone.fg, modifier = Modifier.size(20.dp))
+        }
+        Spacer(Modifier.width(10.dp))
+        Column(modifier = Modifier.weight(1f)) {   // weight so the text gets the remaining width
+            Text(
+                label,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = colors.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                count?.toString() ?: "—",
+                fontSize = 28.sp,
+                fontWeight = FontWeight.Bold,
+                color = colors.onSurface,
+                maxLines = 1,
+            )
+            Text(
+                caption,
+                fontSize = 10.sp,
+                color = colors.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+@Composable
+private fun FocusRow(
+    label: String,
+    count: Int?,
+    icon: ImageVector,
+    accent: Accent,
+    onClick: () -> Unit,
+) {
+    val colors = MaterialTheme.colorScheme
+    val tone = accentTone(accent)
     Row(
         modifier = Modifier
-            .background(Color.White, RoundedCornerShape(14.dp))
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier = Modifier.size(32.dp).background(tone.bg, CircleShape),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(icon, contentDescription = null, tint = tone.fg, modifier = Modifier.size(17.dp))
+        }
+        Text(
+            label,
+            fontSize = 14.sp,
+            color = colors.onSurface,
+            modifier = Modifier.weight(1f).padding(start = 12.dp),
+        )
+        Text(
+            count?.toString() ?: "—",
+            fontSize = 17.sp,
+            fontWeight = FontWeight.Bold,
+            color = if ((count ?: 0) > 0) tone.fg else colors.onSurfaceVariant,
+        )
+        Icon(
+            Icons.Default.ChevronRight,
+            contentDescription = null,
+            tint = colors.onSurfaceVariant,
+            modifier = Modifier.padding(start = 8.dp).size(20.dp),
+        )
+    }
+}
+
+@Composable
+private fun QuickActionRow(action: QuickActionDTO, onClick: () -> Unit) {
+    val colors = MaterialTheme.colorScheme
+    val accent = parseHexColor(action.color)
+    Row(
+        modifier = Modifier
+            .shadow(4.dp, RoundedCornerShape(14.dp))
+            .background(colors.surfaceContainerHigh, RoundedCornerShape(14.dp))
             .clickable(onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(
-            modifier = Modifier
-                .size(34.dp)
-                .background(accent.copy(alpha = 0.14f), RoundedCornerShape(10.dp)),
+            modifier = Modifier.size(34.dp).background(accent.copy(alpha = 0.18f), RoundedCornerShape(10.dp)),
             contentAlignment = Alignment.Center,
         ) {
             Icon(iconForQuickAction(action.icon), contentDescription = action.actionName, tint = accent, modifier = Modifier.size(18.dp))
@@ -174,12 +339,30 @@ private fun QuickActionRow(action: QuickActionDTO, onClick: () -> Unit) {
             action.actionName,
             fontSize = 14.sp,
             fontWeight = FontWeight.SemiBold,
-            color = Color(0xFF1A1A1A),
+            color = colors.onSurface,
             modifier = Modifier.padding(start = 12.dp, end = 4.dp),
         )
     }
 }
 
+// ---------------- Theme-aware accents ----------------
+
+private enum class Accent { LEADS, TASKS, CALLS, MEETINGS, DUE, FOLLOW }
+
+private data class Tone(val fg: Color, val bg: Color)
+
+@Composable
+private fun accentTone(accent: Accent): Tone {
+    val dark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+    return when (accent) {
+        Accent.LEADS -> if (dark) Tone(Color(0xFFC4B5FD), Color(0xFF2E2547)) else Tone(Color(0xFF7C3AED), Color(0xFFF1E8FF))
+        Accent.TASKS -> if (dark) Tone(Color(0xFF86EFAC), Color(0xFF14352A)) else Tone(Color(0xFF16A34A), Color(0xFFE3F6EA))
+        Accent.CALLS -> if (dark) Tone(Color(0xFF93C5FD), Color(0xFF172A4A)) else Tone(Color(0xFF2563EB), Color(0xFFE5EEFF))
+        Accent.MEETINGS -> if (dark) Tone(Color(0xFFFDBA74), Color(0xFF3F2A17)) else Tone(Color(0xFFEA580C), Color(0xFFFFEDE0))
+        Accent.DUE -> if (dark) Tone(Color(0xFFFCA5A5), Color(0xFF3F1D1D)) else Tone(Color(0xFFDC2626), Color(0xFFFEE2E2))
+        Accent.FOLLOW -> if (dark) Tone(Color(0xFFFCD34D), Color(0xFF3A2F10)) else Tone(Color(0xFFD97706), Color(0xFFFEF3C7))
+    }
+}
 private fun iconForQuickAction(icon: String?): ImageVector = when (icon) {
     "person_add" -> Icons.Default.PersonAdd
     "task_alt" -> Icons.Default.TaskAlt

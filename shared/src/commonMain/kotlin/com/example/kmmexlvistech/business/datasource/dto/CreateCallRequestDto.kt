@@ -11,7 +11,7 @@ data class CreateCallRequestDto(
     val startDateTime: String,
     val endDateTime: String,
     val reminderDateTime: String? = null,
-    val assignedTo: Int,
+    val assignedTo: String,
     val leadId: String? = null,
     val accountId: String? = null,
     val contactId: String? = null,

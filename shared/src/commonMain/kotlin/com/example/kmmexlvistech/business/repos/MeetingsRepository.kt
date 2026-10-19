@@ -20,6 +20,8 @@ import com.example.kmmexlvistech.business.datasource.dto.LeadsSortDto
 import com.example.kmmexlvistech.business.datasource.dto.MeetingsListResponse
 import com.example.kmmexlvistech.business.datasource.dto.MeetingsRequestDto
 import com.example.kmmexlvistech.business.datasource.dto.QuickActionDto
+import com.example.kmmexlvistech.business.datasource.dto.UpdateMeetingRequestDto
+import com.example.kmmexlvistech.business.datasource.dto.UpdateMeetingResponse
 import com.example.kmmexlvistech.business.datasource.models.ActivityPrioritiesResponse
 import com.example.kmmexlvistech.business.datasource.models.ActivityStatusesResponse
 import com.example.kmmexlvistech.business.datasource.models.GetWidgetActivityResponse
@@ -41,6 +43,18 @@ import kotlinx.coroutines.flow.flow
             private val service: MeetingsApiServices,
             private val centralCrmApiServices: CentralCrmApiServices,
         ) {
+
+
+
+
+            fun updateMeeting(systemToken: String, requestDto: UpdateMeetingRequestDto): Flow<DataState<UpdateMeetingResponse>> = flow {
+                emit(DataState.Loading(ProgressBarState.Loading))
+                try { emit(DataState.Data(service.updateMeeting(systemToken, requestDto))) }
+                catch (e: Exception) { emit(DataState.Response(UIComponent.ToastSimple(e.message ?: "Something went wrong"))) }
+                emit(DataState.Loading(ProgressBarState.Idle))
+            }
+
+            @Suppress("SuspiciousIndentation")
             fun getMeetings(systemToken:String, meetingsRequestDto: MeetingsRequestDto
             ): Flow<DataState<MeetingsListResponse>> = flow {
                 try {

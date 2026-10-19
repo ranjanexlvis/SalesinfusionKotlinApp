@@ -17,15 +17,19 @@ import com.example.kmmexlvistech.business.datasource.models.GetWidgetActivityRes
 import com.example.kmmexlvistech.business.datasource.models.LoginResponse
 import com.example.kmmexlvistech.business.datasource.models.QuickActionDTO
 import com.example.kmmexlvistech.business.datasource.models.QuickActionResponse
+import com.example.kmmexlvistech.business.datasource.models.UpdateCallRequestDto
+import com.example.kmmexlvistech.business.datasource.models.UpdateCallResponse
 
 
 interface CallsApiServices {
     companion object {
         const val GET_CALLS_LIST = "Call/List"
-        const val GET_CALL_DETAILS = "Call" // id appended in impl
+
+        const val UPDATE_CALL = "Call"
+        const val GET_CALL_DETAILS = "Call"
         const val CREATE_CALL = "Call"
         const val SEARCH_LEADS = "Lead/List"
-        const val DELETE_CALL = "Call/Delete" // id appended in impl
+        const val DELETE_CALL = "Call/Delete"
     }
 
     suspend fun getCallsList(token: String, callsRequestDto: CallsRequestDto): CallsListResponse
@@ -33,4 +37,5 @@ interface CallsApiServices {
     suspend fun createCall(token: String, requestDto: CreateCallRequestDto): CreateCallResponse
     suspend fun searchLeads(token: String, requestDto: LeadsRequestDto): LeadsListResponse
     suspend fun deleteCall(token: String, id: String): DeleteCallResponse
+    suspend fun updateCall(token: String, request: UpdateCallRequestDto): UpdateCallResponse
 }
