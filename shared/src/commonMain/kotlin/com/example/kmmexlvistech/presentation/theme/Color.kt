@@ -2,7 +2,27 @@ package com.example.kmmexlvistech.presentation.theme
 
 import androidx.compose.ui.graphics.Color
 
-// ---------- Sales Infusion Brand Palette (your original tokens, unchanged) ----------
+
+val PrimaryDeep  = Color(0xFF0B3A82)
+val Primary      = Color(0xFF1D4ED8)
+val PrimaryMid   = Color(0xFF2563EB)
+val PrimaryLight = Color(0xFFE6EFFE)
+
+// Surfaces
+val PaperBg   = Color(0xFFF4F6FB)
+val CardWhite = Color(0xFFFFFFFF)
+
+// Text
+val TextDark = Color(0xFF1B2333)
+val TextGrey = Color(0xFF6B7280)
+
+// Status colors
+val Saffron      = Color(0xFFF5A623)
+val SaffronLight = Color(0xFFFFF3DC)
+val SuccessGreen = Color(0xFF2E9E5B)
+val SuccessBg    = Color(0xFFE3F6EA)
+val DangerRed    = Color(0xFFE5484D)
+val DangerBg     = Color(0xFFFDE7E8)
 val PrimaryColor = Color(0xFF339FFE)
 val PrimaryVariantColor = Color(0xFF00396B)
 val AccentColor = Color(0xFFC62F79)
@@ -71,3 +91,21 @@ val DrawerHeaderBg = PrimaryVariantColor
 val DrawerItemSelectedBg = drawerSelectedColor
 
 val LoginCardBorder = CardBorderColor
+
+
+// Donut chart / legend colors (Tasks, Calls, Meetings by Status)
+val ChartPalette = listOf(
+    Color(0xFF2E9E5B), // green  - Completed
+    Color(0xFFF5A623), // orange - Pending / Scheduled
+    Color(0xFF8B6FE0), // purple - In Progress / No Answer / Rescheduled
+    Color(0xFFE5484D), // red    - Cancelled
+    Color(0xFF3B82F6)  // blue   - spare
+)
+
+// Bar chart colors (by Priority: Low, Medium, High, Urgent)
+val PriorityColors = listOf(
+    Color(0xFF4F9DF7), // Low
+    Color(0xFF5CC98F), // Medium
+    Color(0xFFFFC145), // High
+    Color(0xFFEF5B5B)  // Urgent
+)

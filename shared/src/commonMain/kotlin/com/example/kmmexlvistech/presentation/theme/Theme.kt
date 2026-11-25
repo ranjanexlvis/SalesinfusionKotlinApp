@@ -31,6 +31,8 @@ private val SalesInfusionLightColors = lightColorScheme(
 
     outline = BorderColor,
     outlineVariant = PagerDotColor,
+
+
 )
 
 private val SalesInfusionDarkColors = darkColorScheme(

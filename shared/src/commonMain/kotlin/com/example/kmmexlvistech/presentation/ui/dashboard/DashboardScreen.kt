@@ -39,6 +39,11 @@ import com.example.kmmexlvistech.presentation.ui.calls.CallsScreen
 import com.example.kmmexlvistech.presentation.ui.calls.CreateCallScreen
 import com.example.kmmexlvistech.presentation.ui.calls.viewmodel.CallsEvent
 import com.example.kmmexlvistech.presentation.ui.calls.viewmodel.CallsViewModel
+import com.example.kmmexlvistech.presentation.ui.contacts.ContactDetailsScreen
+import com.example.kmmexlvistech.presentation.ui.contacts.ContactsScreen
+import com.example.kmmexlvistech.presentation.ui.contacts.CreateContactScreen
+import com.example.kmmexlvistech.presentation.ui.contacts.viewmodel.ContactsEvent
+import com.example.kmmexlvistech.presentation.ui.contacts.viewmodel.ContactsViewModel
 import com.example.kmmexlvistech.presentation.ui.dashboard.viewModel.DashboardEvent
 import com.example.kmmexlvistech.presentation.ui.dashboard.viewModel.DashboardViewModel
 import com.example.kmmexlvistech.presentation.ui.dashboard.viewModel.HomeViewModel
@@ -56,6 +61,8 @@ import com.example.kmmexlvistech.presentation.ui.profile.EditProfileScreen
 import com.example.kmmexlvistech.presentation.ui.profile.ProfileScreen
 import com.example.kmmexlvistech.presentation.ui.profile.viewmodel.ProfileEvent
 import com.example.kmmexlvistech.presentation.ui.profile.viewmodel.ProfileViewModel
+import com.example.kmmexlvistech.presentation.ui.report.ActivityReportScreen
+import com.example.kmmexlvistech.presentation.ui.report.viewmodel.ActivityReportViewModel
 import com.example.kmmexlvistech.presentation.ui.tasks.CreateTaskScreen
 import com.example.kmmexlvistech.presentation.ui.tasks.TaskDetailsScreen
 import com.example.kmmexlvistech.presentation.ui.tasks.TaskScreen
@@ -70,6 +77,11 @@ import org.koin.compose.koinInject
 private const val CALLS_ROUTE = "calls_screen"
 private const val MEETINGS_ROUTE = "meetings_screen"     // const, and private like the others
 private const val ACCOUNTS_ROUTE = "accounts"
+
+private const val CONTACTS_ROUTE = "contacts"
+private const val CONTACT_DETAILS_ROUTE = "contacts/details"
+private const val CREATE_CONTACT_ROUTE = "contacts/create"
+private const val ACTIVITY_REPORT_ROUTE = "activity_reports"
 private  val PROFILE_ROUTE = BottomNavDestination.MORE.route
 
 private fun routeForWidgetCode(widgetCode: String): String? = when (widgetCode) {
@@ -81,10 +93,7 @@ private fun routeForWidgetCode(widgetCode: String): String? = when (widgetCode) 
     "ACCOUNTS" -> ACCOUNTS_ROUTE
     else -> null
 }
-private val routesWithOwnTopBar = setOf(
-    BottomNavDestination.MORE.route, "profile/edit",
-    ACCOUNTS_ROUTE, "accounts/details", "accounts/create",
-)
+
 
 private fun routeForPath(rawPath: String): String? {
     val normalized = rawPath.removePrefix("/").removePrefix("crm/").removePrefix("activities/")
@@ -114,13 +123,17 @@ fun DashboardScreen(
     val appDataStoreManager: AppDataStore = koinInject()
     val menuViewModel: DashboardViewModel = koinInject()
 
-    // ---- Navigation state (must come BEFORE anything that uses currentRoute) ----
     val currentEntry by tabNavigator.currentEntry.collectAsState(null)
     val currentRoute = currentEntry?.route?.route
     val tabRoutes = remember { BottomNavDestination.entries.map { it.route }.toSet() }
 
     var notificationCount by remember { mutableStateOf(0) }
-     val routesWithOwnTopBar = setOf(BottomNavDestination.MORE.route, "profile/edit")
+    val routesWithOwnTopBar = setOf(
+        BottomNavDestination.MORE.route,
+        "profile/edit",
+        ACTIVITY_REPORT_ROUTE
+    )
+
 
 
     // ---- Dynamic drawer menu ----
@@ -135,9 +148,11 @@ fun DashboardScreen(
     println("@@@@@menuResponse"+drawerMenus)
 
     val selectedMenuCode = when (currentRoute) {
+        ACTIVITY_REPORT_ROUTE -> "ACTIVITY_REPORTS"
         BottomNavDestination.HOME.route -> "DASHBOARD"
         BottomNavDestination.LEADS.route, "leads/details", "leads/create" -> "CRM_LEADS"
         ACCOUNTS_ROUTE, "accounts/details", "accounts/create" -> "CRM_ACCOUNTS"
+        CONTACTS_ROUTE, "contacts/details", "contacts/create" -> "CRM_CONTACTS"
         BottomNavDestination.TASKS.route, "tasks/details", "tasks/create" -> "TASKS"
         MEETINGS_ROUTE, "meetings/details", "meetings/create" -> "MEETINGS"
         CALLS_ROUTE, "calls/details", "calls/create" -> "CALLS"
@@ -157,7 +172,7 @@ fun DashboardScreen(
                     closeDrawer()
                     println("@@@@@@"+item)
                     when (item.menuCode) {
-
+                        "ACTIVITY_REPORTS" -> tabNavigator.navigate(ACTIVITY_REPORT_ROUTE)
                         "DASHBOARD" -> tabNavigator.navigate(BottomNavDestination.HOME.route)
                         "CRM_LEADS" -> tabNavigator.navigate(BottomNavDestination.LEADS.route)
                         "TASKS" -> tabNavigator.navigate(BottomNavDestination.TASKS.route)
@@ -166,6 +181,7 @@ fun DashboardScreen(
                         "MY_PROFILE" -> tabNavigator.navigate(PROFILE_ROUTE)
                         "LOGOUT" -> onLogout()
                         "CRM_ACCOUNTS" -> tabNavigator.navigate(ACCOUNTS_ROUTE)
+                        "CRM_CONTACTS" -> tabNavigator.navigate(CONTACTS_ROUTE)
                         else -> Unit
                     }
                 },
@@ -221,6 +237,148 @@ fun DashboardScreen(
                 )
             }
 
+            scene(route = CONTACTS_ROUTE) {
+                val contactsViewModel: ContactsViewModel = koinInject()
+                var systemToken by remember { mutableStateOf("") }
+
+                LaunchedEffect(Unit) {
+                    systemToken =
+                        appDataStoreManager.readValue(DataStoreKeys.TOKEN) ?: ""
+                }
+
+                LaunchedEffect(systemToken) {
+                    if (systemToken.isNotBlank()) {
+                        contactsViewModel.onEvent(
+                            ContactsEvent.GetContacts(systemToken)
+                        )
+                        contactsViewModel.onEvent(
+                            ContactsEvent.LoadLookups(systemToken)
+                        )
+                    }
+                }
+
+                ContactsScreen(
+                    state = contactsViewModel.state.value,
+                    events = contactsViewModel::onEvent,
+                    systemToken = systemToken,
+                    onMenuClick = openDrawer,
+                    onContactClick = { contact ->
+                        contactsViewModel.onEvent(
+                            ContactsEvent.SelectContact(contact.id)
+                        )
+                        tabNavigator.navigate(CONTACT_DETAILS_ROUTE)
+                    },
+                    onCreateClick = {
+                        contactsViewModel.onEvent(
+                            ContactsEvent.ResetContactForm
+                        )
+                        tabNavigator.navigate(CREATE_CONTACT_ROUTE)
+                    },
+                    onEditClick = { contact ->
+                        contactsViewModel.onEvent(
+                            ContactsEvent.LoadContactForEdit(contact)
+                        )
+                        tabNavigator.navigate(CREATE_CONTACT_ROUTE)
+                    }
+                )
+            }
+
+            scene(route = CREATE_CONTACT_ROUTE) {
+                val contactsViewModel: ContactsViewModel = koinInject()
+                var systemToken by remember { mutableStateOf("") }
+
+                LaunchedEffect(Unit) {
+                    systemToken =
+                        appDataStoreManager.readValue(DataStoreKeys.TOKEN) ?: ""
+                }
+
+                LaunchedEffect(systemToken) {
+                    if (systemToken.isNotBlank()) {
+                        contactsViewModel.onEvent(
+                            ContactsEvent.LoadLookups(systemToken)
+                        )
+                    }
+                }
+
+                CreateContactScreen(
+                    state = contactsViewModel.state.value,
+                    events = contactsViewModel::onEvent,
+                    token = systemToken,
+                    onBackClick = {
+                        tabNavigator.goBack()
+                    },
+                    onSaved = {
+                        contactsViewModel.onEvent(
+                            ContactsEvent.ResetContactForm
+                        )
+                        tabNavigator.goBack()
+                        contactsViewModel.onEvent(
+                            ContactsEvent.GetContacts(systemToken)
+                        )
+                    }
+                )
+            }
+
+            scene(route = CONTACT_DETAILS_ROUTE) {
+                val contactsViewModel: ContactsViewModel = koinInject()
+                val contactId =
+                    contactsViewModel.state.value.selectedContactId ?: ""
+
+                var systemToken by remember { mutableStateOf("") }
+
+                LaunchedEffect(Unit) {
+                    systemToken =
+                        appDataStoreManager.readValue(DataStoreKeys.TOKEN) ?: ""
+                }
+
+                LaunchedEffect(systemToken, contactId) {
+                    if (systemToken.isNotBlank() && contactId.isNotBlank()) {
+                        contactsViewModel.onEvent(
+                            ContactsEvent.LoadContactDetails(
+                                token = systemToken,
+                                id = contactId
+                            )
+                        )
+                    }
+                }
+
+                ContactDetailsScreen(
+                    state = contactsViewModel.state.value,
+                    onBackClick = {
+                        tabNavigator.goBack()
+                    },
+                    onEditClick = {
+                        contactsViewModel.state.value.contact?.let { contact ->
+                            contactsViewModel.onEvent(
+                                ContactsEvent.LoadContactForEdit(contact)
+                            )
+                            tabNavigator.navigate(CREATE_CONTACT_ROUTE)
+                        }
+                    },
+                    onDeleteConfirmed = {
+                        if (systemToken.isNotBlank() && contactId.isNotBlank()) {
+                            contactsViewModel.onEvent(
+                                ContactsEvent.DeleteContact(systemToken, contactId)
+                            )
+                        }
+                    },
+                    onRemoveHeadFromQueue = {
+                        contactsViewModel.onEvent(
+                            ContactsEvent.OnRemoveHeadFromQueue
+                        )
+                    },
+                    onTryAgain = {
+                        if (systemToken.isNotBlank() && contactId.isNotBlank()) {
+                            contactsViewModel.onEvent(
+                                ContactsEvent.LoadContactDetails(
+                                    systemToken,
+                                    contactId
+                                )
+                            )
+                        }
+                    }
+                )
+            }
 
             scene(route = ACCOUNTS_ROUTE) {
                 val vm: AccountsViewModel = koinInject()
@@ -245,6 +403,28 @@ fun DashboardScreen(
                         tabNavigator.navigate("accounts/create")
                     },
                 )
+            }
+
+            scene(route = ACTIVITY_REPORT_ROUTE) {
+                val reportViewModel: ActivityReportViewModel = koinInject()
+                var systemToken by remember { mutableStateOf("") }
+
+                LaunchedEffect(Unit) {
+                    systemToken = appDataStoreManager.readValue(DataStoreKeys.TOKEN) ?: ""
+                }
+
+                if (systemToken.isNotBlank()) {
+                    ActivityReportScreen(
+                        token = systemToken,
+                        viewModel = reportViewModel,
+                        // lookups = FilterLookups(...)  // see below
+                        onBack = { tabNavigator.goBack() },
+                        onViewReport = { type, filters ->
+                            // later: navigate to the detailed report list
+                            println("@@view report: $type $filters")
+                        }
+                    )
+                }
             }
 
             scene(route = "accounts/create") {
@@ -862,23 +1042,25 @@ private fun DrawerItem(
     }
 }
 
-// ======================= Menu helpers =======================
 
-// Add a code here when you build its screen; it then appears in the drawer automatically
-private val supportedMenuCodes = setOf(
-    "DASHBOARD", "CRM_LEADS", "TASKS", "MEETINGS", "CALLS", "MY_PROFILE", "CRM_ACCOUNTS","LOGOUT",
-)
 
 fun List<MenuItemDTO>.forDrawer(): List<MenuItemDTO> =
-    filter { it.showOnMobile }
-        .mapNotNull { item ->
-            if (item.children.isNotEmpty()) {
-                val kids = item.children.forDrawer()
-                if (kids.isEmpty()) null else item.copy(children = kids)
+    filter { item ->
+        item.isVisible && item.showOnMobile
+    }.mapNotNull { item ->
+        if (item.children.isNotEmpty()) {
+            val visibleChildren = item.children.forDrawer()
+
+            if (visibleChildren.isNotEmpty()) {
+                item.copy(children = visibleChildren)
             } else {
-                item.takeIf { it.menuCode in supportedMenuCodes }
+                null
             }
+        } else {
+            // Show every API menu item that is enabled for mobile.
+            item
         }
+    }
 
 fun iconForMenu(icon: String?): ImageVector = when (icon) {
     "fa fa-gauge-high" -> Icons.Default.Dashboard
